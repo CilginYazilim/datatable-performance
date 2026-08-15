@@ -1,0 +1,171 @@
+/* ==================================================================
+ *  SAYFAYA ÖZEL STİLLER
+ *  cilginyazilim.com – Yüksek Hacimli Veride Sunucu Taraflı DataTables
+ * ------------------------------------------------------------------
+ *  Yükleme sırası:
+ *    bootstrap.min.css → dataTables.bootstrap5.min.css →
+ *    cilginyazilim.css → style.css
+ * ================================================================== */
+
+.cy-page { max-width: 1500px; margin: 0 auto; }
+
+
+/* ==================================================================
+ *  PERFORMANS ROZETİ
+ * ------------------------------------------------------------------
+ *  Her istekte YENİDEN yazılır (bkz. table.js updatePerfBar()).
+ *  Performansı "hızlıdır" diye anlatmak yerine SAYIYI GÖSTERMEK,
+ *  optimizasyonun gerçek etkisini kanıtlar — özellikle filtre/arama
+ *  değiştirilip sayının nasıl değiştiği izlendiğinde.
+ * ================================================================== */
+.cy-perf-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .6rem .8rem;
+    background: var(--cy-surface-soft);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius);
+    font-size: .8rem;
+    color: var(--cy-text-muted);
+}
+
+.cy-perf-bar__item {
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    background: var(--cy-surface);
+    border: 1px solid var(--cy-border);
+}
+
+.cy-perf-bar__item strong {
+    color: var(--cy-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.cy-perf-bar__item--total {
+    background: var(--cy-brand-100);
+    border-color: var(--cy-brand-400);
+    color: var(--cy-brand-700);
+    font-weight: 600;
+}
+
+.cy-perf-bar__item--total strong { color: var(--cy-brand-700); }
+
+
+/* ==================================================================
+ *  GERÇEK SAYIM / TAHMİN KARŞILAŞTIRMA ROZETİ
+ * ------------------------------------------------------------------
+ *  Bu deponun asıl konusu burada görünür hâle gelir: soldaki sayı
+ *  SAYFALAMAYI SÜRER (gerçek COUNT(*)), sağdaki information_schema
+ *  tahminidir ve hiçbir yerde kullanılmaz. Sapma vurgulanır, çünkü
+ *  eski kodda o fark kadar satır ERİŞİLEMEZ durumdaydı.
+ * ================================================================== */
+.cy-truth-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    padding: .6rem .8rem;
+    background: var(--cy-surface-soft);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius);
+    font-size: .8rem;
+    color: var(--cy-text-muted);
+}
+
+.cy-truth-bar__item {
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    background: var(--cy-surface);
+    border: 1px solid var(--cy-border);
+}
+
+.cy-truth-bar__item strong {
+    color: var(--cy-text);
+    font-variant-numeric: tabular-nums;
+}
+
+.cy-truth-bar__item small { opacity: .75; }
+
+.cy-truth-bar__item--real {
+    background: var(--cy-brand-100);
+    border-color: var(--cy-brand-400);
+    color: var(--cy-brand-700);
+}
+
+.cy-truth-bar__item--real strong { color: var(--cy-brand-700); }
+
+.cy-truth-bar__item--drift {
+    border-color: #f0b429;
+    background: #fff8e6;
+    color: #8a5a00;
+}
+
+.cy-truth-bar__item--drift strong { color: #8a5a00; }
+
+
+/* ==================================================================
+ *  ARAÇ ÇUBUĞU
+ * ================================================================== */
+.cy-toolbar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1rem;
+    overflow-x: auto;
+    padding-bottom: .15rem;
+}
+
+.cy-toolbar__search {
+    flex: 1 1 240px;
+    min-width: 180px;
+    max-width: 380px;
+}
+
+.cy-toolbar__select {
+    flex: 0 0 170px;
+}
+
+
+/* ==================================================================
+ *  ALT ÇUBUK (uzunluk + bilgi + sayfalama)
+ * ------------------------------------------------------------------
+ *  excel-import-export / bulk-actions-table projelerindeki aynı
+ *  desenin tekrarıdır — bkz. oradaki ".dataTables_length" satır
+ *  bölünme hatası notu; burada baştan doğru kuruldu.
+ * ================================================================== */
+.cy-bottom-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem .5rem;
+    margin-top: 1rem;
+    padding-top: .85rem;
+    border-top: 1px solid var(--cy-border);
+    font-size: .85rem;
+    color: var(--cy-text-muted);
+}
+
+.cy-bottom-bar__length,
+.cy-bottom-bar__info,
+.cy-bottom-bar__pagination {
+    display: flex;
+    align-items: center;
+}
+
+.cy-bottom-bar__length .dataTables_length label {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    margin: 0;
+    white-space: nowrap;
+}
+
+.cy-bottom-bar__length .dataTables_length select { width: auto; }
+.cy-bottom-bar__info .dataTables_info { padding: 0; white-space: nowrap; }
+.cy-bottom-bar__pagination .dataTables_paginate { margin: 0 !important; }
+
+@media (max-width: 575.98px) {
+    .cy-bottom-bar { justify-content: center; text-align: center; }
+}

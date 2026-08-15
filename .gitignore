@@ -1,0 +1,36 @@
+# =====================================================================
+#  .gitignore – Git'in TAKİP ETMEYECEĞİ dosyalar
+# ---------------------------------------------------------------------
+#  NOT: Bu bir ÖRNEK PROJEDİR. Örnek görseller ve örnek veriler
+#  bilerek repoya DAHİL EDİLMİŞTİR; projeyi indiren herkes hiçbir
+#  ek işlem yapmadan çalışan bir demo görsün diye.
+#
+#  Kendi GERÇEK projenizde, kullanıcıların yüklediği dosyaları
+#  repoya koymayın. Bunun için aşağıdaki iki satırın başındaki
+#  # işaretini kaldırmanız yeterlidir:
+#
+#  upload/*
+#  !upload/.htaccess
+# =====================================================================
+
+# --- Yerel ortam ayarları (şifre içerebilir, ASLA paylaşmayın) -------
+.env
+system/config.local.php
+
+# --- Editör ve işletim sistemi artıkları ----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# --- Log ve geçici dosyalar -----------------------------------------
+*.log
+*.tmp
+*.bak
+
+# --- Bağımlılık klasörleri (bu projede kullanılmıyor) ---------------
+/vendor/
+/node_modules/

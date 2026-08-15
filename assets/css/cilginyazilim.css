@@ -1,0 +1,629 @@
+/* ==================================================================
+ *  ÇILGIN YAZILIM – TASARIM KALIBI (Design System)
+ *  cilginyazilim.com
+ * ------------------------------------------------------------------
+ *  Bu dosya, Çılgın Yazılım örnek projelerinin ORTAK görsel kimliğidir.
+ *  Bootstrap 5'in ÜZERİNE eklenir, Bootstrap'i değiştirmez.
+ *
+ *  BAŞKA BİR PROJEDE NASIL KULLANILIR?
+ *    1) Bu dosyayı projenize kopyalayın.
+ *    2) Bootstrap CSS'ten SONRA ekleyin:
+ *         <link rel="stylesheet" href="assets/css/bootstrap.min.css">
+ *         <link rel="stylesheet" href="assets/css/cilginyazilim.css">
+ *    3) <body> etiketine bir tema sınıfı verin: <body class="cy-app">
+ *    4) Hazır bileşenleri kullanın: .cy-card, .cy-btn, .cy-table,
+ *       .cy-avatar, .cy-badge, .cy-modal ...
+ *
+ *  RENGİ DEĞİŞTİRMEK İSTERSENİZ:
+ *    Aşağıdaki :root bloğundaki değişkenleri değiştirmeniz yeterlidir.
+ *    Tüm bileşenler bu değişkenlerden beslenir; tek yerden tüm tema
+ *    değişir. (CSS Custom Properties / CSS Değişkenleri)
+ * ================================================================== */
+
+
+/* ------------------------------------------------------------------
+ *  1) TASARIM TOKEN'LARI (Design Tokens)
+ * ------------------------------------------------------------------
+ *  "Token" = tasarımın en küçük yapı taşı (renk, gölge, yuvarlaklık).
+ *  Sabit değerleri koda dağıtmak yerine burada TEK yerde tanımlarız.
+ * ------------------------------------------------------------------ */
+:root {
+    /* --- Marka renkleri --------------------------------------------
+     * Bu tonlar cilginyazilim.com logosundan alınmıştır:
+     * koyu lacivertten canlı maviye uzanan geçiş.
+     * -------------------------------------------------------------- */
+    --cy-brand-900: #061321;   /* Logodaki en koyu lacivert */
+    --cy-brand-700: #0a3d73;
+    --cy-brand-600: #0b5cb5;   /* Ana marka mavisi */
+    --cy-brand-500: #1268c9;
+    --cy-brand-400: #3b8ae0;
+    --cy-brand-100: #e7f1fc;   /* Açık zemin tonu */
+    --cy-accent:    #0ea5e9;   /* Vurgu (açık mavi) */
+    --cy-accent-600:#0284c7;
+
+    /* --- Durum renkleri ------------------------------------------ */
+    --cy-success: #059669;
+    --cy-warning: #d97706;
+    --cy-danger:  #dc2626;
+    --cy-info:    #0284c7;
+
+    /* --- Yüzey ve metin ------------------------------------------ */
+    --cy-bg:           #f2f7fd;  /* Sayfa arka planı */
+    --cy-bg-alt:       #e8f1fb;
+    --cy-surface:      #ffffff;  /* Kart / modal zemini */
+    --cy-surface-soft: #f8fafc;  /* Tablo başlığı gibi ikincil zemin */
+    --cy-text:         #0f172a;  /* Ana metin */
+    --cy-text-muted:   #64748b;  /* İkincil metin */
+    --cy-border:       #e2e8f0;
+
+    /* --- Marka gradyanı (header, buton, rozet) ------------------- */
+    --cy-gradient: linear-gradient(135deg,
+                    var(--cy-brand-900) 0%,
+                    var(--cy-brand-600) 45%,
+                    var(--cy-accent-600) 100%);
+
+    /* --- Köşe yuvarlaklığı --------------------------------------- */
+    --cy-radius-sm: .5rem;
+    --cy-radius:    .875rem;
+    --cy-radius-lg: 1.25rem;
+    --cy-radius-pill: 999px;
+
+    /* --- Gölgeler ------------------------------------------------ */
+    --cy-shadow-sm: 0 1px 2px rgba(15, 23, 42, .06);
+    --cy-shadow:    0 10px 30px rgba(6, 19, 33, .10);
+    --cy-shadow-lg: 0 25px 60px rgba(6, 19, 33, .18);
+
+    /* --- Tipografi ----------------------------------------------- */
+    --cy-font: "Segoe UI", system-ui, -apple-system, "Helvetica Neue",
+               Roboto, Arial, sans-serif;
+
+    /* --- Geçiş süresi -------------------------------------------- */
+    --cy-transition: .18s ease;
+}
+
+/* ------------------------------------------------------------------
+ *  KOYU TEMA (Dark Mode)
+ * ------------------------------------------------------------------
+ *  Kullanıcının işletim sistemi koyu temadaysa otomatik devreye girer.
+ *  Sadece TOKEN'ları yeniden tanımlarız; bileşen kodu aynı kalır.
+ *  Zorla koyu tema için: <html data-cy-theme="dark">
+ * ------------------------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-cy-theme="light"]) {
+        --cy-bg:           #070f1a;
+        --cy-bg-alt:       #0c1725;
+        --cy-surface:      #101b2b;
+        --cy-surface-soft: #16243a;
+        --cy-text:         #e2e8f0;
+        --cy-text-muted:   #94a3b8;
+        --cy-border:       #1e2f47;
+        --cy-brand-100:    #10263f;
+        --cy-shadow:       0 10px 30px rgba(0, 0, 0, .45);
+        --cy-shadow-lg:    0 25px 60px rgba(0, 0, 0, .55);
+    }
+}
+
+:root[data-cy-theme="dark"] {
+    --cy-bg:           #070f1a;
+    --cy-bg-alt:       #0c1725;
+    --cy-surface:      #101b2b;
+    --cy-surface-soft: #16243a;
+    --cy-text:         #e2e8f0;
+    --cy-text-muted:   #94a3b8;
+    --cy-border:       #1e2f47;
+    --cy-brand-100:    #10263f;
+    --cy-shadow:       0 10px 30px rgba(0, 0, 0, .45);
+    --cy-shadow-lg:    0 25px 60px rgba(0, 0, 0, .55);
+}
+
+
+/* ------------------------------------------------------------------
+ *  2) SAYFA İSKELETİ
+ * ------------------------------------------------------------------ */
+body.cy-app {
+    min-height: 100vh;
+    font-family: var(--cy-font);
+    color: var(--cy-text);
+    /* Arka plan: iki yumuşak ışık lekesi + düz zemin.
+       radial-gradient'ler markanın "enerjik" hissini verir. */
+    background-color: var(--cy-bg);
+    background-image:
+        radial-gradient(900px 450px at 12% -8%, rgba(11, 92, 181, .16), transparent 60%),
+        radial-gradient(800px 420px at 92% 4%, rgba(14, 165, 233, .14), transparent 60%);
+    background-attachment: fixed;
+}
+
+/* Sayfanın en üstündeki ince marka şeridi */
+.cy-topbar {
+    height: 4px;
+    background: var(--cy-gradient);
+}
+
+
+/* ------------------------------------------------------------------
+ *  3) MARKA LOGOSU / BAŞLIK
+ * ------------------------------------------------------------------ */
+.cy-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: .7rem;
+    text-decoration: none;
+    color: inherit;
+    transition: opacity var(--cy-transition);
+}
+
+/* Bağlantı olarak kullanıldığında altı çizilmesin, sadece hafifçe solsun */
+a.cy-brand:hover { color: inherit; opacity: .88; }
+
+/* Logoyu taşıyan yuvarlak kutu.
+   Logo koyu lacivert/mavi olduğu için, gradyanlı başlığın üzerinde
+   kaybolmasın diye BEYAZ bir zemine oturtulur. */
+.cy-brand__mark {
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    padding: 6px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(6, 19, 33, .25);
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.cy-brand__mark img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;   /* Logoyu kırpmadan kutuya sığdırır */
+    display: block;
+}
+
+.cy-brand__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0;
+    letter-spacing: -.015em;
+}
+
+.cy-brand__subtitle {
+    margin: 0;
+    font-size: .82rem;
+    opacity: .8;
+}
+
+
+/* ------------------------------------------------------------------
+ *  4) KART (.cy-card)
+ * ------------------------------------------------------------------
+ *  Tüm içerikleri saran ana kutu. Başlık kısmı marka gradyanlıdır.
+ * ------------------------------------------------------------------ */
+.cy-card {
+    background: var(--cy-surface);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius-lg);
+    box-shadow: var(--cy-shadow);
+    overflow: hidden;
+}
+
+.cy-card__header {
+    position: relative;
+    padding: 1.35rem 1.5rem;
+    background: var(--cy-gradient);
+    color: #fff;
+    /* Üst üste binen yarı saydam desen: derinlik hissi verir. */
+    background-image:
+        radial-gradient(600px 200px at 85% 0%, rgba(255, 255, 255, .18), transparent 65%),
+        var(--cy-gradient);
+}
+
+.cy-card__body {
+    padding: 1.5rem;
+}
+
+.cy-card__footer {
+    padding: .9rem 1.5rem;
+    background: var(--cy-surface-soft);
+    border-top: 1px solid var(--cy-border);
+    color: var(--cy-text-muted);
+    font-size: .85rem;
+}
+
+
+/* ------------------------------------------------------------------
+ *  5) ROZETLER (.cy-badge)
+ * ------------------------------------------------------------------ */
+.cy-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .8rem;
+    border-radius: var(--cy-radius-pill);
+    font-size: .8rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* Gradyanlı başlık üzerinde kullanılan cam efektli rozet */
+.cy-badge--glass {
+    background: rgba(255, 255, 255, .18);
+    border: 1px solid rgba(255, 255, 255, .3);
+    color: #fff;
+}
+
+.cy-badge--soft {
+    background: var(--cy-brand-100);
+    color: var(--cy-brand-600);
+}
+
+
+/* ------------------------------------------------------------------
+ *  6) BUTONLAR
+ * ------------------------------------------------------------------
+ *  Bootstrap'in .btn sınıfıyla birlikte kullanılır:
+ *     <button class="btn cy-btn cy-btn--primary">Kaydet</button>
+ * ------------------------------------------------------------------ */
+.cy-btn {
+    border-radius: var(--cy-radius-sm);
+    font-weight: 600;
+    border: 1px solid transparent;
+    transition: transform var(--cy-transition),
+                box-shadow var(--cy-transition),
+                background-color var(--cy-transition);
+}
+
+.cy-btn:hover { transform: translateY(-1px); }
+.cy-btn:active { transform: translateY(0); }
+
+/* Ana eylem butonu: marka gradyanlı */
+.cy-btn--primary {
+    background: var(--cy-gradient);
+    color: #fff;
+    box-shadow: 0 6px 16px rgba(11, 92, 181, .30);
+}
+.cy-btn--primary:hover,
+.cy-btn--primary:focus {
+    color: #fff;
+    box-shadow: 0 10px 22px rgba(11, 92, 181, .40);
+}
+
+/* Gradyanlı başlığın üzerinde duran beyaz buton */
+.cy-btn--onbrand {
+    background: #fff;
+    color: var(--cy-brand-600);
+    box-shadow: 0 6px 16px rgba(15, 23, 42, .18);
+}
+.cy-btn--onbrand:hover { color: var(--cy-brand-700); background: #fff; }
+
+/* Gradyanlı başlık üzerindeki ikincil (cam efektli) buton */
+.cy-btn--glass {
+    background: rgba(255, 255, 255, .16);
+    border: 1px solid rgba(255, 255, 255, .32);
+    color: #fff;
+}
+.cy-btn--glass:hover,
+.cy-btn--glass:focus {
+    background: rgba(255, 255, 255, .28);
+    color: #fff;
+}
+
+/* Tablo içi küçük ikon butonları (Detay / Düzenle / Sil) */
+.cy-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: var(--cy-radius-sm);
+    border: 1px solid var(--cy-border);
+    background: var(--cy-surface);
+    color: var(--cy-text-muted);
+    line-height: 1;
+    transition: all var(--cy-transition);
+}
+.cy-btn-icon:hover { transform: translateY(-2px); color: #fff; }
+.cy-btn-icon--view:hover   { background: var(--cy-info);    border-color: var(--cy-info); }
+.cy-btn-icon--edit:hover   { background: var(--cy-warning); border-color: var(--cy-warning); }
+.cy-btn-icon--delete:hover { background: var(--cy-danger);  border-color: var(--cy-danger); }
+
+/* İşlem butonlarını yan yana ortalayan sarmalayıcı */
+.cy-actions {
+    display: inline-flex;
+    gap: .35rem;
+}
+
+
+/* ------------------------------------------------------------------
+ *  7) AVATAR (Profil görseli / baş harf rozeti)
+ * ------------------------------------------------------------------ */
+.cy-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: var(--cy-radius-sm);
+    object-fit: cover;          /* Görsel oranını bozmadan kırpar */
+    border: 2px solid var(--cy-surface);
+    box-shadow: var(--cy-shadow-sm);
+    background: var(--cy-surface-soft);
+}
+
+/* Görseli olmayan kayıtlar için baş harften üretilen rozet */
+.cy-avatar--initial {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--cy-brand-400), var(--cy-accent));
+    color: #fff;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border: 0;
+}
+
+.cy-avatar--lg { width: 120px; height: 120px; font-size: 2.4rem; }
+
+
+/* ------------------------------------------------------------------
+ *  8) TABLO (.cy-table)
+ * ------------------------------------------------------------------ */
+.cy-table {
+    --bs-table-bg: transparent;   /* Bootstrap değişkenini geçersiz kıl */
+    color: var(--cy-text);
+    margin-bottom: 0;
+}
+
+.cy-table > thead > tr > th {
+    background: var(--cy-surface-soft);
+    color: var(--cy-text-muted);
+    font-size: .74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    white-space: nowrap;
+    border-bottom: 2px solid var(--cy-border);
+    padding: .85rem 1rem;
+}
+
+.cy-table > tbody > tr > td {
+    vertical-align: middle;
+    padding: .7rem 1rem;
+    border-color: var(--cy-border);
+    color: var(--cy-text);
+}
+
+.cy-table > tbody > tr {
+    transition: background-color var(--cy-transition);
+}
+
+.cy-table > tbody > tr:hover > td {
+    background-color: var(--cy-brand-100);
+}
+
+/* ID sütununu tek tip göstermek için */
+.cy-id {
+    font-variant-numeric: tabular-nums;
+    color: var(--cy-text-muted);
+    font-size: .85rem;
+    font-weight: 600;
+}
+
+.cy-name { font-weight: 600; }
+
+
+/* ------------------------------------------------------------------
+ *  9) DATATABLES UYUMU
+ * ------------------------------------------------------------------
+ *  DataTables kendi arama kutusu / sayfalama HTML'ini üretir.
+ *  Aşağıdaki kurallar onları marka görünümüne uyarlar.
+ * ------------------------------------------------------------------ */
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius-sm);
+    padding: .4rem .7rem;
+    transition: border-color var(--cy-transition), box-shadow var(--cy-transition);
+}
+
+.dataTables_wrapper .dataTables_filter input:focus,
+.dataTables_wrapper .dataTables_length select:focus {
+    outline: 0;
+    border-color: var(--cy-brand-500);
+    box-shadow: 0 0 0 .2rem rgba(11, 92, 181, .20);
+}
+
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_paginate {
+    color: var(--cy-text-muted);
+    font-size: .875rem;
+}
+
+.dataTables_wrapper .page-link {
+    color: var(--cy-brand-600);
+    background: var(--cy-surface);
+    border-color: var(--cy-border);
+    border-radius: var(--cy-radius-sm);
+    margin: 0 2px;
+}
+
+.dataTables_wrapper .page-item.active .page-link {
+    background: var(--cy-gradient);
+    border-color: transparent;
+    color: #fff;
+}
+
+.dataTables_wrapper .page-item.disabled .page-link {
+    color: var(--cy-text-muted);
+    background: var(--cy-surface);
+    opacity: .55;
+}
+
+/* "İşleniyor..." kutusu */
+.dataTables_wrapper .dataTables_processing {
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius);
+    box-shadow: var(--cy-shadow);
+}
+
+
+/* ------------------------------------------------------------------
+ *  10) FORM ALANLARI
+ * ------------------------------------------------------------------ */
+.cy-app .form-label {
+    font-weight: 600;
+    font-size: .875rem;
+    color: var(--cy-text);
+    margin-bottom: .35rem;
+}
+
+.cy-app .form-control,
+.cy-app .form-select {
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius-sm);
+    padding: .6rem .8rem;
+}
+
+.cy-app .form-control:focus,
+.cy-app .form-select:focus {
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    border-color: var(--cy-brand-500);
+    box-shadow: 0 0 0 .2rem rgba(11, 92, 181, .20);
+}
+
+.cy-app .form-control::placeholder { color: var(--cy-text-muted); opacity: .7; }
+.cy-app .form-text { color: var(--cy-text-muted); font-size: .8rem; }
+
+
+/* ------------------------------------------------------------------
+ *  11) MODAL
+ * ------------------------------------------------------------------ */
+.cy-modal .modal-content {
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius-lg);
+    box-shadow: var(--cy-shadow-lg);
+    overflow: hidden;
+}
+
+/* Modal başlığı da marka gradyanlıdır */
+.cy-modal .modal-header {
+    background: var(--cy-gradient);
+    color: #fff;
+    border-bottom: 0;
+    padding: 1rem 1.25rem;
+}
+
+.cy-modal .modal-header .btn-close {
+    /* Beyaz kapatma ikonu (Bootstrap 5.2 yardımcı sınıfı) */
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.cy-modal .modal-body   { padding: 1.35rem 1.25rem; }
+.cy-modal .modal-footer { border-top: 1px solid var(--cy-border); padding: .9rem 1.25rem; }
+
+
+/* ------------------------------------------------------------------
+ *  12) DETAY LİSTESİ (modal içinde etiket/değer satırları)
+ * ------------------------------------------------------------------ */
+.cy-detail {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: .55rem 1rem;
+    font-size: .92rem;
+}
+
+.cy-detail dt {
+    color: var(--cy-text-muted);
+    font-weight: 600;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.cy-detail dd {
+    margin: 0;
+    color: var(--cy-text);
+    word-break: break-word;
+}
+
+
+/* ------------------------------------------------------------------
+ *  13) TOAST BİLDİRİMLERİ
+ * ------------------------------------------------------------------ */
+.cy-toast-container { z-index: 1090; }
+
+.cy-toast {
+    border: 0;
+    border-radius: var(--cy-radius);
+    box-shadow: var(--cy-shadow-lg);
+    /* Soldaki renkli şerit, mesaj türünü hızlıca belli eder. */
+    border-left: 4px solid transparent;
+}
+
+.cy-toast--success { background: var(--cy-success); border-left-color: #064e3b; color: #fff; }
+.cy-toast--danger  { background: var(--cy-danger);  border-left-color: #7f1d1d; color: #fff; }
+.cy-toast--info    { background: var(--cy-info);    border-left-color: #0c4a6e; color: #fff; }
+
+
+/* ------------------------------------------------------------------
+ *  14) BOŞ DURUM / YARDIMCI SINIFLAR
+ * ------------------------------------------------------------------ */
+.cy-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--cy-text-muted);
+}
+
+.cy-muted { color: var(--cy-text-muted); }
+.cy-nowrap { white-space: nowrap; }
+
+.cy-footer-note {
+    text-align: center;
+    color: var(--cy-text-muted);
+    font-size: .85rem;
+}
+
+.cy-footer-note a {
+    color: var(--cy-brand-600);
+    text-decoration: none;
+    font-weight: 600;
+}
+.cy-footer-note a:hover { text-decoration: underline; }
+
+
+/* ------------------------------------------------------------------
+ *  15) MOBİL UYUM
+ * ------------------------------------------------------------------ */
+@media (max-width: 767.98px) {
+    .cy-card__header,
+    .cy-card__body { padding: 1rem; }
+
+    .cy-brand__title { font-size: 1.05rem; }
+    .cy-avatar { width: 38px; height: 38px; }
+    .cy-detail { grid-template-columns: 1fr; gap: .2rem .5rem; }
+    .cy-detail dd { margin-bottom: .5rem; }
+}
+
+
+/* ------------------------------------------------------------------
+ *  16) ERİŞİLEBİLİRLİK
+ * ------------------------------------------------------------------
+ *  Kullanıcı "hareketi azalt" ayarını açtıysa animasyonları kapat.
+ * ------------------------------------------------------------------ */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: .01ms !important;
+        transition-duration: .01ms !important;
+    }
+}

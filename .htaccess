@@ -1,0 +1,76 @@
+# =====================================================================
+#  KÖK DİZİN KURALLARI
+#  cilginyazilim.com – Yüksek Hacimli Veride Sunucu Taraflı DataTables
+# ---------------------------------------------------------------------
+#  ÖLÇÜLEN SORUN: Bu projede hiç .htaccess YOKTU. Ölçüm:
+#      /schema.sql    → 200 (3.791 bayt — şema indirilebiliyordu)
+#      /.gitignore    → 200 (1.126 bayt)
+#      /assets/js/    → 200 (klasör listesi basılıyordu)
+#      /README.md     → 200
+#  Ayrıca index.php yanıtında güvenlik başlıklarının DÖRDÜ DE yoktu.
+#
+#  Bu dosya alt klasörlere de MİRAS KALIR (ölçüldü) — buradaki
+#  başlıklar assets/ ve system/ yanıtlarında da geçerlidir.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+#  1) KLASÖR İÇERİĞİ LİSTELENMESİN
+# ---------------------------------------------------------------------
+#  index dosyası olmayan bir klasöre girildiğinde Apache varsayılan
+#  olarak dosya listesini basar. Saldırganın "burada ne var?" sorusunu
+#  bedavaya cevaplamanın gereği yok. (/assets/js/ ölçümde 200 dönüp
+#  tüm kütüphane sürümlerini listeliyordu — hangi jQuery sürümünün
+#  kullanıldığını bilmek, bilinen açıkları denemenin ilk adımıdır.)
+Options -Indexes
+
+# ---------------------------------------------------------------------
+#  2) ÇALIŞTIRILMAYAN DOSYALAR İNDİRİLEMESİN
+# ---------------------------------------------------------------------
+#  cy_datatable.sql KURULUM malzemesidir; web sunucusunun onu servis
+#  etmesi için hiçbir sebep yoktur. Bu depoda şema zaten açık kaynak
+#  ama desen tehlikelidir: aynı düzenle canlıya alınan bir projede o
+#  dosya tablo yapısını —ve çoğu zaman örnek/gerçek veriyi— taşır.
+<FilesMatch "\.(sql|md|json|lock|log|ini|bak|dist|example)$">
+    Require all denied
+</FilesMatch>
+
+# Nokta ile başlayan dosyalar (.htaccess, .gitignore, .env …).
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# ---------------------------------------------------------------------
+#  3) GÜVENLİK BAŞLIKLARI
+# ---------------------------------------------------------------------
+#  NOT: Aynı başlıklar PHP tarafında da basılıyor (bkz.
+#  system/function.php → security_headers()). Tekrar DEĞİL, KASITLI
+#  ikinci katman: .htaccess yalnızca Apache'de ve AllowOverride
+#  açıkken okunur; nginx'e taşındığında PHP tarafı devreye girer.
+#  Buradaki kural ise assets/ altındaki STATİK dosyaları da kapsar —
+#  onlar PHP'den geçmez.
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Sayfa başka bir sitenin çerçevesine gömülmesin (clickjacking).
+    Header always set X-Frame-Options "SAMEORIGIN"
+
+    # Dış sitelere giderken tam URL yerine yalnızca alan adı gönderilsin.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Bu sayfanın ihtiyacı olmayan tarayıcı yetenekleri kapatılsın.
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+</IfModule>
+
+# ---------------------------------------------------------------------
+#  4) STATİK VARLIKLARDA ÖNBELLEK
+# ---------------------------------------------------------------------
+#  Bu bir PERFORMANS deposu; istemci tarafındaki en ucuz kazanç
+#  budur. index.php, style.css ve table.js bağlantılarına filemtime()
+#  ile sürüm etiketi ekler (?v=...), bu yüzden uzun önbellek süresi
+#  güvenlidir: dosya değişince URL de değişir.
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css                 "access plus 1 year"
+    ExpiresByType application/javascript   "access plus 1 year"
+    ExpiresByType image/png                "access plus 1 year"
+</IfModule>

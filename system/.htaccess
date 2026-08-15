@@ -1,0 +1,36 @@
+# =====================================================================
+#  system/ KLASÖRÜ – YALNIZCA ajax.php DIŞARIYA AÇIK
+#  cilginyazilim.com – Yüksek Hacimli Veride Sunucu Taraflı DataTables
+# ---------------------------------------------------------------------
+#  ÖLÇÜLEN SORUN: Projede hiç .htaccess yoktu.
+#    /system/config.php    → HTTP 200 (0 bayt)
+#    /system/function.php  → HTTP 200 (0 bayt)
+#  İkisi de ekrana bir şey basmıyordu, bu yüzden "zararsız"
+#  görünüyordu. Zararsız değildi: config.php her çağrıldığında bir
+#  VERİTABANI BAĞLANTISI açıyor. Kimlik doğrulaması olmadan
+#  tetiklenebilen ve iş yapan her adres, ucuz bir hizmet dışı bırakma
+#  (DoS) kaldıracıdır — üstelik bu depoda tam olarak "sunucu zamanı
+#  ne kadar pahalı" konusu işleniyor.
+#
+#  Ayrıca bir yapılandırma hatası (PHP'nin yorumlanmadığı bir an,
+#  yanlış bir uzantı) bu dosyaların KAYNAK KODUNU —veritabanı
+#  parolasıyla birlikte— düz metin olarak sunar.
+#
+#  NEDEN BEYAZ LİSTE (önce hepsini reddet, sonra ajax.php'yi aç)?
+#  Kara liste yazsaydık ("config.php'yi engelle") projeye yarın
+#  eklenen her yeni dosya VARSAYILAN OLARAK AÇIK olurdu ve kimse fark
+#  etmezdi. Beyaz listede yeni dosya varsayılan olarak KAPALIDIR;
+#  açılması için bilinçli bir karar gerekir. Güvenlikte varsayılanın
+#  YÖNÜ, kuralın kendisinden önemlidir.
+#
+#  İkinci katman: dosyaların kendi içindeki CY_APP kontrolü (bkz.
+#  config.php / function.php). .htaccess'in okunmadığı bir sunucuda
+#  (nginx) bu dosya hiçbir şey yapmaz; oradaki PHP kontrolü çalışır.
+# =====================================================================
+
+Require all denied
+
+# ajax.php tarayıcıdan çağrılan GERÇEK uç noktadır; açık kalmalıdır.
+<Files "ajax.php">
+    Require all granted
+</Files>
