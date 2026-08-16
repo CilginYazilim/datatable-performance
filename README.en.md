@@ -17,7 +17,7 @@ Indexing · Deferred join · Cached exact counts · **Measurable** performance
 <img src="assets/images/screenshot.png" alt="100,000-row table with a query-time badge above it" width="900">
 </div>
 
-That single frame sums up the whole repository: the table holds **100,000 orders**, the page rendered in **2.96 ms**, and the second badge shows live that the **real** count driving pagination (100,000) differs from the `information_schema` **estimate** (99,316) by **684 rows**.
+That single frame sums up the whole repository: the table holds **100,000 orders** and the page rendered in **2.88 ms** — the "100,000" in the badge isn't an `information_schema` estimate either, it's the **real** `COUNT(*)` that actually drives pagination (see [Decision 1](#decision-1--estimated-count-or-cached-exact-count)).
 
 This repo is both a working example and a performance log: **every number here was measured**, none estimated.
 
@@ -112,15 +112,9 @@ We tried it. After `ANALYZE TABLE orders` the estimate dropped to **99,579** —
 
 ### The decision we made
 
-**The number that drives pagination is always a real `COUNT(*)`; a file cache absorbs its cost.** The estimate was not deleted — it is displayed in the UI **next to** the real number, for comparison.
+**The number that drives pagination is always a real `COUNT(*)`; a file cache absorbs its cost.** The `information_schema` estimate is no longer read anywhere in the app.
 
-Why keep it? Because this is a **teaching** repository. Seeing both numbers side by side, with the live drift between them, is more convincing than this entire README:
-
-```
-Driving pagination: 100,000 (real COUNT(*))
-information_schema estimate: 99,316 (0.78 ms)
-Drift: 684 rows — that many rows would be unreachable
-```
+An intermediate version kept the estimate instead of deleting it — displayed in the UI **next to** the real number, on the reasoning that "seeing both numbers side by side is instructive." That's an honest part of the process worth recording here too: from the moment the badge existed, the estimate was **constant** (it doesn't change on an unchanged table), so re-reading it on every request bought nothing — we were just paying the `information_schema` query's own cost (~0.8 ms) over and over. The badge was removed from the UI and the query went with it; the measurements in this section remain as a **permanent warning**, because "why `information_schema` can't be trusted" is worth having written down somewhere so the same mistake isn't repeated.
 
 ### The cache's trade-off (we're not hiding it)
 
@@ -411,14 +405,11 @@ In addition to DataTables' standard server-side parameters:
   "data": [[99695, "SP0000099695", "Taha YILDIRIM", "…"]],
   "timings": {
     "count_total_ms": 0.31,
-    "estimate_ms": 0.81,
     "count_filtered_ms": 0,
     "data_query_ms": 1.24,
-    "total_ms": 2.36
+    "total_ms": 1.55
   },
   "meta": {
-    "estimated_total": 99316,
-    "estimate_drift": 684,
     "count_cached": true,
     "search_mode": "scan",
     "search_label": "full scan (LIKE %…%)"
@@ -488,7 +479,7 @@ CREATE TABLE `orders` (
 
 ```
 datatable-performance/
-├── index.php                  ← UI: performance badge + comparison badge + table
+├── index.php                  ← UI: performance badge + table
 ├── cy_datatable.sql           ← Schema AND indexes (no data) + index rationale
 ├── seed.php                   ← CLI data generator (php seed.php [row_count])
 ├── .htaccess                  ← No directory listing, .sql/.md denied, security headers
@@ -510,7 +501,6 @@ datatable-performance/
 | `handle_list()` | `ajax.php` | The single endpoint; validates params, builds `WHERE`, measures timings |
 | `count_cached()` | `function.php` | **Real** `COUNT(*)`, file-cached (47 ms → 0.12 ms) |
 | `count_cache_forget()` | `function.php` | Clears the cache after writes (`seed.php` calls it) |
-| `estimate_total_rows()` | `function.php` | `information_schema` estimate — **display only**, never drives pagination |
 | `classify_search()` | `function.php` | Picks the exact / prefix / scan path from the search text |
 | `build_page_sql()` | `function.php` | Builds the deferred-join query |
 | `sort_keys()` | `function.php` | Per-column stable sort keys that don't break the index |

@@ -258,28 +258,16 @@ function rate_limit(string $bucket, int $limit, int $windowSeconds): void
  *  TABLE çalıştırmak sapmayı KAPATMADI, 310'dan 421'e ÇIKARDI.
  *  Tahmin doğası gereği yaklaşıktır; sayfalama ise KESİN bir sayı
  *  ister. İkisi aynı alana yazılamaz.
- * ================================================================== */
-
-/**
- * Tablodaki YAKLAŞIK satır sayısı — TABLOYU TARAMADAN.
  *
- * DİKKAT: Bu değer artık SAYFALAMADA KULLANILMIYOR. Yalnızca arayüzde
- * gerçek sayının YANINDA, karşılaştırma amacıyla gösteriliyor —
- * çünkü bu deponun konusu tam olarak budur: "hızlı ama yaklaşık" ile
- * "kesin ama pahalı" arasındaki farkı GÖRÜNÜR kılmak. Rozette iki
- * sayıyı yan yana görmek, bu dosyadaki uzun açıklamadan daha
- * öğreticidir.
- */
-function estimate_total_rows(PDO $db): int
-{
-    $stmt = $db->prepare(
-        'SELECT TABLE_ROWS FROM information_schema.TABLES
-          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = "orders"'
-    );
-    $stmt->execute();
-
-    return (int) $stmt->fetchColumn();
-}
+ *  ÖNCEKİ SÜRÜMDE tahmin silinmemiş, gerçek sayının YANINDA
+ *  karşılaştırma rozeti olarak bırakılmıştı (information_schema
+ *  sorgusu her istekte ayrıca çalışıyordu, ~0,8 ms). O rozet arayüzden
+ *  kaldırıldı; artık kimsenin okumadığı bir sorguyu her istekte
+ *  çalıştırmanın gerekçesi kalmadığı için estimate_total_rows()
+ *  fonksiyonu da BU SÜRÜMDE SİLİNDİ. Yukarıdaki ölçüm, o hatanın ve
+ *  neden information_schema'ya güvenilemeyeceğinin kalıcı kaydıdır —
+ *  ayrıntılı gerekçe README'de duruyor.
+ * ================================================================== */
 
 function count_cache_dir(): string
 {

@@ -23,11 +23,8 @@ security_headers($scriptNonce);
 $csrfToken = csrf_token();
 
 /* İlk ekran için GERÇEK sayı kullanılır — sayfalamayı süren sayı da
- * budur (bkz. count_cached(), system/function.php). Tahmin, yanındaki
- * karşılaştırma rozetinde ayrıca gösterilir: bu deponun konusu iki
- * yaklaşım arasındaki farkı GÖRÜNÜR kılmaktır. */
-$totalRows     = count_cached($db, 'orders|all', 'SELECT COUNT(*) FROM orders', [], COUNT_CACHE_TTL)['count'];
-$estimatedRows = estimate_total_rows($db);
+ * budur (bkz. count_cached(), system/function.php). */
+$totalRows = count_cached($db, 'orders|all', 'SELECT COUNT(*) FROM orders', [], COUNT_CACHE_TTL)['count'];
 ?>
 <!DOCTYPE html>
 <html lang="tr">
@@ -104,30 +101,8 @@ $estimatedRows = estimate_total_rows($db);
                     <span class="cy-perf-bar__item cy-perf-bar__item--total">
                         Toplam: <strong id="perf_total">-</strong> ms
                     </span>
-                </div>
-
-                <!-- ---------- Öğretici rozet: iki sayım yan yana ----------
-                     Bu deponun asıl konusu burada görünür hâle gelir.
-                     Soldaki sayı SAYFALAMAYI SÜRER (gerçek COUNT(*),
-                     önbellekli); sağdaki information_schema'dan okunan
-                     TAHMİNDİR ve hiçbir yerde kullanılmaz. Aradaki
-                     sapmayı canlı görmek, "tahmin neden sayfalamaya
-                     giremez" sorusunu tek bakışta cevaplar. -->
-                <div class="cy-truth-bar mb-3">
-                    <span class="cy-truth-bar__item cy-truth-bar__item--real">
-                        Sayfalamayı süren: <strong id="truth_real"><?= number_format($totalRows, 0, ',', '.') ?></strong>
-                        <small>gerçek COUNT(*)</small>
-                    </span>
-                    <span class="cy-truth-bar__item">
-                        information_schema tahmini: <strong id="truth_estimate"><?= number_format($estimatedRows, 0, ',', '.') ?></strong>
-                        <small>(<span id="truth_estimate_ms">-</span> ms)</small>
-                    </span>
-                    <span class="cy-truth-bar__item cy-truth-bar__item--drift">
-                        Sapma: <strong id="truth_drift"><?= number_format($totalRows - $estimatedRows, 0, ',', '.') ?></strong> satır
-                        <small>bu kadar satır erişilemez olurdu</small>
-                    </span>
-                    <span class="cy-truth-bar__item" id="truth_search_wrap" hidden>
-                        Arama yolu: <strong id="truth_search">-</strong>
+                    <span class="cy-perf-bar__item" id="perf_search_wrap" hidden>
+                        Arama yolu: <strong id="perf_search">-</strong>
                     </span>
                 </div>
 

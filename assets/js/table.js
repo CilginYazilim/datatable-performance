@@ -44,7 +44,7 @@ var CyPerfTable = (function ($) {
         return Number(n).toLocaleString('tr-TR');
     }
 
-    /** Sunucudan gelen ölçümleri üstteki iki rozete yazar. */
+    /** Sunucudan gelen ölçümleri performans rozetine yazar. */
     function updateBadges(json) {
         if (!json) { return; }
 
@@ -56,23 +56,13 @@ var CyPerfTable = (function ($) {
         setText('perf_data', t.data_query_ms);
         setText('perf_total', t.total_ms);
 
-        /* Öğretici rozet: sayfalamayı süren GERÇEK sayı ile
-         * information_schema TAHMİNİ yan yana. Aradaki fark, "tahmin
-         * neden sayfalamaya giremez"in canlı kanıtıdır — filtresiz
-         * görünümde bu kadar satır ERİŞİLEMEZ olurdu. */
-        if (m.estimated_total !== undefined) {
-            setText('truth_real', formatTr(json.recordsTotal));
-            setText('truth_estimate', formatTr(m.estimated_total));
-            setText('truth_estimate_ms', t.estimate_ms);
-            setText('truth_drift', formatTr(m.estimate_drift));
-        }
-
-        // Hangi arama yolunun seçildiği: maliyet gizlenmesin.
-        var wrap = document.getElementById('truth_search_wrap');
+        // Hangi arama yolunun seçildiği: maliyet gizlenmesin (bkz.
+        // classify_search(), system/function.php).
+        var wrap = document.getElementById('perf_search_wrap');
 
         if (wrap) {
             if (m.search_mode && m.search_mode !== 'none') {
-                setText('truth_search', m.search_label);
+                setText('perf_search', m.search_label);
                 wrap.hidden = false;
             } else {
                 wrap.hidden = true;

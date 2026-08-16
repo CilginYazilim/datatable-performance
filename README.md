@@ -17,7 +17,7 @@
 <img src="assets/images/screenshot.png" alt="100.000 satırlık tablo, üstünde sorgu süresi rozetiyle" width="900">
 </div>
 
-Yukarıdaki kare bu deponun tamamını özetler: tabloda **100.000 sipariş** var, sayfa **2,96 ms**'de geldi ve üstteki ikinci rozet, sayfalamayı süren **gerçek** sayının (100.000) `information_schema` **tahmininden** (99.316) **684 satır** farklı olduğunu canlı gösteriyor.
+Yukarıdaki kare bu deponun tamamını özetler: tabloda **100.000 sipariş** var ve sayfa **2,88 ms**'de geldi — rozetteki "100.000" da `information_schema` tahmini değil, sayfalamayı fiilen süren **gerçek** `COUNT(*)`'tır (bkz. [Karar 1](#karar-1--tahmini-sayım-mı-önbelleğe-alınmış-gerçek-sayım-mı)).
 
 Bu depo hem çalışan bir örnek hem de bir performans günlüğüdür: **buradaki her sayı ölçüldü**, hiçbiri tahmin değil.
 
@@ -112,15 +112,9 @@ Denendi. `ANALYZE TABLE orders` sonrası tahmin **99.579**'a düştü — yani f
 
 ### Verilen karar
 
-**Sayfalamayı süren sayı her zaman gerçek `COUNT(*)`'tır; maliyeti dosya önbelleği karşılar.** Tahmin silinmedi — arayüzde gerçek sayının **yanında**, karşılaştırma amacıyla gösteriliyor.
+**Sayfalamayı süren sayı her zaman gerçek `COUNT(*)`'tır; maliyeti dosya önbelleği karşılar.** `information_schema` tahmini artık uygulamanın hiçbir yerinde okunmuyor.
 
-Neden tamamen silmedik? Çünkü bu bir **öğretici** depo. Ekranda iki sayıyı yan yana ve aradaki sapmayı canlı görmek, bu README'nin tamamından daha ikna edici:
-
-```
-Sayfalamayı süren: 100.000 (gerçek COUNT(*))
-information_schema tahmini: 99.316 (0,78 ms)
-Sapma: 684 satır — bu kadar satır erişilemez olurdu
-```
+Bir ara sürümde tahmin silinmemiş, arayüzde gerçek sayının **yanında** karşılaştırma rozeti olarak bırakılmıştı — "iki sayıyı yan yana görmek öğreticidir" gerekçesiyle. Bu, geliştirme sürecinin dürüst bir parçası olduğu için burada da kayıtlı: rozet gösterdiği andan itibaren tahmin **sabitti** (aynı tabloda değişmiyordu), yani her istekte yeniden okumanın kazandırdığı hiçbir şey yoktu — yalnızca `information_schema` sorgusunun kendi maliyetini (~0,8 ms) ödüyorduk. Rozet arayüzden kaldırıldı, sorgu da onunla birlikte gitti; bu bölümdeki ölçümler ise **kalıcı bir uyarı** olarak kalıyor, çünkü aynı hataya bir dahaki sefere düşmemek için "neden information_schema'ya güvenilemez" bilgisinin bir yerde yazılı durması gerekiyor.
 
 ### Önbelleğin ödünleşmesi (gizlemiyoruz)
 
@@ -411,14 +405,11 @@ DataTables'ın standart sunucu taraflı parametrelerine ek olarak:
   "data": [[99695, "SP0000099695", "Taha YILDIRIM", "…"]],
   "timings": {
     "count_total_ms": 0.31,
-    "estimate_ms": 0.81,
     "count_filtered_ms": 0,
     "data_query_ms": 1.24,
-    "total_ms": 2.36
+    "total_ms": 1.55
   },
   "meta": {
-    "estimated_total": 99316,
-    "estimate_drift": 684,
     "count_cached": true,
     "search_mode": "scan",
     "search_label": "tam tarama (LIKE %…%)"
@@ -488,7 +479,7 @@ CREATE TABLE `orders` (
 
 ```
 datatable-performance/
-├── index.php                  ← Arayüz: performans rozeti + karşılaştırma rozeti + tablo
+├── index.php                  ← Arayüz: performans rozeti + tablo
 ├── cy_datatable.sql           ← Şema VE indeksler (veri YOK) + indeks gerekçeleri
 ├── seed.php                   ← CLI veri üretici (php seed.php [satır_sayısı])
 ├── .htaccess                  ← Dizin listeleme kapalı, .sql/.md engelli, güvenlik başlıkları
@@ -510,7 +501,6 @@ datatable-performance/
 | `handle_list()` | `ajax.php` | Tek uç nokta; parametreleri doğrular, `WHERE` kurar, süreleri ölçer |
 | `count_cached()` | `function.php` | **Gerçek** `COUNT(*)`, dosya önbellekli (47 ms → 0,12 ms) |
 | `count_cache_forget()` | `function.php` | Yazma sonrası önbelleği boşaltır (`seed.php` çağırır) |
-| `estimate_total_rows()` | `function.php` | `information_schema` tahmini — **yalnızca gösterim**, sayfalamada kullanılmaz |
 | `classify_search()` | `function.php` | Arama metnine bakıp exact / prefix / scan yolunu seçer |
 | `build_page_sql()` | `function.php` | Ertelenmiş join sorgusunu kurar |
 | `sort_keys()` | `function.php` | Sütun bazlı, indeksi bozmayan kararlı sıralama anahtarları |

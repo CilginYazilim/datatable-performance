@@ -53,57 +53,6 @@
 
 
 /* ==================================================================
- *  GERÇEK SAYIM / TAHMİN KARŞILAŞTIRMA ROZETİ
- * ------------------------------------------------------------------
- *  Bu deponun asıl konusu burada görünür hâle gelir: soldaki sayı
- *  SAYFALAMAYI SÜRER (gerçek COUNT(*)), sağdaki information_schema
- *  tahminidir ve hiçbir yerde kullanılmaz. Sapma vurgulanır, çünkü
- *  eski kodda o fark kadar satır ERİŞİLEMEZ durumdaydı.
- * ================================================================== */
-.cy-truth-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: .5rem;
-    padding: .6rem .8rem;
-    background: var(--cy-surface-soft);
-    border: 1px solid var(--cy-border);
-    border-radius: var(--cy-radius);
-    font-size: .8rem;
-    color: var(--cy-text-muted);
-}
-
-.cy-truth-bar__item {
-    padding: .2rem .6rem;
-    border-radius: 999px;
-    background: var(--cy-surface);
-    border: 1px solid var(--cy-border);
-}
-
-.cy-truth-bar__item strong {
-    color: var(--cy-text);
-    font-variant-numeric: tabular-nums;
-}
-
-.cy-truth-bar__item small { opacity: .75; }
-
-.cy-truth-bar__item--real {
-    background: var(--cy-brand-100);
-    border-color: var(--cy-brand-400);
-    color: var(--cy-brand-700);
-}
-
-.cy-truth-bar__item--real strong { color: var(--cy-brand-700); }
-
-.cy-truth-bar__item--drift {
-    border-color: #f0b429;
-    background: #fff8e6;
-    color: #8a5a00;
-}
-
-.cy-truth-bar__item--drift strong { color: #8a5a00; }
-
-
-/* ==================================================================
  *  ARAÇ ÇUBUĞU
  * ================================================================== */
 .cy-toolbar {

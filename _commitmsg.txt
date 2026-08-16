@@ -1,0 +1,24 @@
+Karşılaştırma rozetini kaldır: her istekte hiçbir yerde okunmayan bir sayıyı yeniden çekmenin gerekçesi kalmamıştı
+
+Önceki turda "sayfalamayı süren gerçek sayı" ile "information_schema
+tahmini" arayüzde yan yana gösteriliyordu. Rozet kaldırılınca
+estimate_total_rows() çağrısının da anlamı kalmadı: tahmin salt okunur
+bir tabloda istekler arasında değişmiyor, yani her istekte yeniden
+okumak (~0,8 ms) hiçbir yeni bilgi getirmiyordu.
+
+- index.php: truth-bar bölümü ve $estimatedRows silindi.
+- system/ajax.php: estimate_ms ölçümü, meta.estimated_total ve
+  meta.estimate_drift kaldırıldı. Filtresiz sayfa artık ~1,5-2 ms
+  (estimate sorgusu gitti).
+- system/function.php: estimate_total_rows() fonksiyonu silindi;
+  BÖLÜM 4 yorumu tahminin neden sayfalamada KULLANILAMAYACAĞININ
+  kalıcı kaydı olarak kaldı (aynı hataya bir daha düşülmesin diye).
+- assets/js/table.js, style.css: truth-bar DOM/CSS'i kaldırıldı;
+  "arama yolu" rozeti mevcut performans çubuğuna taşındı.
+- README.md / README.en.md: Karar 1 bölümü ve API sözleşmesi örneği
+  güncellendi; ekran görüntüleri yeniden alındı.
+
+Regresyon: sayfalama doğruluğu, arama yolu yönlendirmesi (exact/
+prefix/scan) ve tüm önceki testler tekrar çalıştırıldı, hepsi geçti.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>

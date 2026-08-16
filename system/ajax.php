@@ -37,9 +37,10 @@ try {
  *  DÖRT PERFORMANS TEKNİĞİ BİR ARADA:
  *
  *    1. SAYIM: GERÇEK COUNT(*) — ama dosyada önbelleğe alınmış
- *       (47 ms → 0,12 ms). Sayfalama artık TAHMİNE değil, kesin bir
- *       sayıya dayanıyor; tahmin yalnızca karşılaştırma amacıyla
- *       yanıta ekleniyor (bkz. count_cached(), function.php).
+ *       (47 ms → 0,12 ms). Sayfalama artık information_schema
+ *       TAHMİNİNE değil, kesin bir sayıya dayanıyor (bkz.
+ *       count_cached(), function.php) — bu deponun en önemli
+ *       düzeltmesi, eski hatanın hikâyesi için bkz. BÖLÜM 4.
  *    2. ARAMA YÖNLENDİRME: sipariş numarası tam/önek eşleşmesi
  *       indeksli hızlı yola gider (429 ms → 1 ms); genel metin
  *       araması bilinçli olarak tam tarama kalır ve öyle etiketlenir
@@ -154,16 +155,6 @@ function handle_list(PDO $db): void
     $recordsTotal = $total['count'];
     $timings['count_total_ms'] = round((microtime(true) - $t0) * 1000, 2);
 
-    /* Tahmini sayım — SAYFALAMADA KULLANILMAZ, yalnızca rozette
-     * gerçek sayının yanında gösterilir. Süresi ayrıca ölçülür ki
-     * "taramasız tahmin gerçekten ucuz mu?" sorusu ekranda
-     * cevaplansın (ölçüldü: ~0,5 ms). Öğretici amaçla eklenmiş bu
-     * sorguyu üretimde çıkarmak isterseniz burası ve rozetteki
-     * karşılığı silinir; başka hiçbir yeri etkilemez. */
-    $t0 = microtime(true);
-    $estimatedTotal = estimate_total_rows($db);
-    $timings['estimate_ms'] = round((microtime(true) - $t0) * 1000, 2);
-
     /* --- 2) FİLTRELİ SAYIM ------------------------------------------
      * Filtre yoksa "filtrelenmiş" sayı zaten toplamla AYNIDIR;
      * ikinci bir COUNT(*) çalıştırmak tamamen gereksizdir. Bu
@@ -233,15 +224,12 @@ function handle_list(PDO $db): void
         'timings'         => $timings,
 
         /* Öğretici ek alanlar — DataTables bunları kullanmaz, ekrandaki
-         * rozet kullanır. Amaç: "hızlı ama yaklaşık" ile "kesin ama
-         * önbellekli" arasındaki farkı ve hangi arama yolunun
-         * seçildiğini GÖRÜNÜR kılmak. Bu deponun konusu tam olarak bu. */
+         * rozet kullanır. Amaç: hangi arama yolunun seçildiğini ve
+         * sayımın önbellekten mi geldiğini GÖRÜNÜR kılmak. */
         'meta' => [
-            'estimated_total' => $estimatedTotal,
-            'estimate_drift'  => $recordsTotal - $estimatedTotal,
-            'count_cached'    => $countCached,
-            'search_mode'     => $searchMode,
-            'search_label'    => $searchLabel,
+            'count_cached' => $countCached,
+            'search_mode'  => $searchMode,
+            'search_label' => $searchLabel,
         ],
     ]);
 }
