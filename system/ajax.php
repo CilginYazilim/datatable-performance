@@ -92,6 +92,19 @@ function handle_list(PDO $db): void
     $category = trim((string) ($_POST['category_filter'] ?? ''));
     $status   = trim((string) ($_POST['status_filter'] ?? ''));
 
+    /* Tarih aralığı: geçersiz biçim SESSİZCE yok sayılır (bkz.
+     * valid_date(), function.php). İki uç bağımsızdır — yalnızca
+     * başlangıç ya da yalnızca bitiş verilebilir. */
+    $dateFrom = valid_date(trim((string) ($_POST['date_from'] ?? '')));
+    $dateTo   = valid_date(trim((string) ($_POST['date_to']   ?? '')));
+
+    // Kullanıcı uçları ters girdiyse (bitiş < başlangıç) düzeltiriz;
+    // aksi hâlde sorgu her zaman 0 satır döner ve arayüz "veri yok"
+    // diyerek KULLANICI HATASINI VERİ SORUNU gibi gösterirdi.
+    if ($dateFrom !== null && $dateTo !== null && $dateFrom > $dateTo) {
+        [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+    }
+
     $orderColumn    = (int) ($_POST['order'][0]['column'] ?? 7);
     $orderDirection = strtolower((string) ($_POST['order'][0]['dir'] ?? 'desc'));
 
@@ -137,6 +150,22 @@ function handle_list(PDO $db): void
     if ($status !== '' && array_key_exists($status, ORDER_STATUSES)) {
         $where[] = 'status = :status';
         $params[':status'] = $status;
+    }
+
+    /* TARİH ARALIĞI — bu şemadaki EN UCUZ filtredir, çünkü
+     * idx_orders_date (order_date, id) üzerinde doğrudan bir ARALIK
+     * taramasına dönüşür ve varsayılan sıralama zaten order_date'tir:
+     * MySQL aynı indeksi hem filtre hem sıralama için kullanır,
+     * ayrıca bir filesort yapmaz. BETWEEN yerine iki ayrı koşul
+     * yazılıyor çünkü uçlar bağımsız olarak boş bırakılabilir. */
+    if ($dateFrom !== null) {
+        $where[] = 'order_date >= :date_from';
+        $params[':date_from'] = $dateFrom;
+    }
+
+    if ($dateTo !== null) {
+        $where[] = 'order_date <= :date_to';
+        $params[':date_to'] = $dateTo;
     }
 
     $whereSql  = $where !== [] ? ' WHERE ' . implode(' AND ', $where) : '';
@@ -230,6 +259,14 @@ function handle_list(PDO $db): void
             'count_cached' => $countCached,
             'search_mode'  => $searchMode,
             'search_label' => $searchLabel,
+
+            /* Sunucunun KABUL ETTİĞİ tarih uçları geri yansıtılır.
+             * Geçersiz bir değer yok sayıldıysa ya da ters girilen
+             * uçlar takas edildiyse, arayüz kutuları buna göre
+             * düzeltir — böylece ekranda YAZAN filtre ile
+             * UYGULANAN filtre hep aynı olur. */
+            'date_from'    => $dateFrom,
+            'date_to'      => $dateTo,
         ],
     ]);
 }

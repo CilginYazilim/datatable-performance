@@ -17,7 +17,13 @@ Indexing · Deferred join · Cached exact counts · **Measurable** performance
 <img src="assets/images/screenshot.png" alt="100,000-row table with a query-time badge above it" width="900">
 </div>
 
-That single frame sums up the whole repository: the table holds **100,000 orders** and the page rendered in **2.88 ms** — the "100,000" in the badge isn't an `information_schema` estimate either, it's the **real** `COUNT(*)` that actually drives pagination (see [Decision 1](#decision-1--estimated-count-or-cached-exact-count)).
+That single frame sums up the whole repository: the table holds **100,000 orders** and the page rendered in **3.09 ms** — the "100,000" in the badge isn't an `information_schema` estimate either, it's the **real** `COUNT(*)` that actually drives pagination (see [Decision 1](#decision-1--estimated-count-or-cached-exact-count)).
+
+<div align="center">
+<img src="assets/images/screenshot-mobile.png" alt="Card view on a phone: every row is a labelled card" width="300">
+</div>
+
+On a phone the same table switches to a **card view**. Fitting eight columns into 390 px with horizontal scrolling actually **hid the existence** of those columns, because touch devices show no scrollbar — see [UI decisions](#ui-decisions--mobile-theme-and-filter-chips).
 
 This repo is both a working example and a performance log: **every number here was measured**, none estimated.
 
@@ -30,8 +36,10 @@ This repo is both a working example and a performance log: **every number here w
 - [Decision 1 — Estimated count, or cached exact count?](#decision-1--estimated-count-or-cached-exact-count)
 - [Decision 2 — Why `LIKE '%...%'` can't use an index, and what we did](#decision-2--why-like-cant-use-an-index-and-what-we-did)
 - [Decision 3 — The cost of deep pagination](#decision-3--the-cost-of-deep-pagination)
+- [Decision 4 — Date range: the cheapest filter in the schema](#decision-4--date-range-the-cheapest-filter-in-the-schema)
 - [Index decisions](#index-decisions)
 - [Sort stability — a subtle but expensive trap](#sort-stability--a-subtle-but-expensive-trap)
+- [UI decisions — mobile, theme and filter chips](#ui-decisions--mobile-theme-and-filter-chips)
 - [Security layers](#security-layers)
 - [API contract](#api-contract)
 - [HTTP status codes](#http-status-codes)
@@ -75,6 +83,7 @@ With server-side processing the browser receives **only the 25 rows it displays*
 | Filter: `status` | 53.50 ms | 113.99 ms | **2.55 ms** | 21× |
 | Filter: `category` | 79.23 ms | 76.45 ms | **3.75 ms** | 21× |
 | Deep page (OFFSET 99,000) | 240.25 ms | 111.21 ms | **61.99 ms** | 3.9× |
+| Date range (Jan 2025, 4,179 rows) | — | 17.46 ms | **4.07 ms** | see [Decision 4](#decision-4--date-range-the-cheapest-filter-in-the-schema) |
 
 **What do "cold" and "warm" mean?** Cold = the count cache is empty and `COUNT(*)` actually runs. Warm = the count comes from cache (0.12 ms). In real usage the first request is cold and **every subsequent paging/sorting request is warm** — the "warm" column is what a user clicking a column header actually experiences. We publish both, because showing only the warm numbers would hide the cache's cost.
 
@@ -234,6 +243,45 @@ This is a deliberate trade-off: if you can give up page numbers, switch to keyse
 
 ---
 
+## Decision 4 — Date range: the cheapest filter in the schema
+
+This round added a **date range filter** to the UI (`date_from` / `date_to`). It was added not only for usefulness: it is the clearest example of the **most efficient access path** this schema has.
+
+`idx_orders_date (order_date, id)` already existed and served the default sort (`order_date DESC`). A date range opens a **range scan** on that **same index**, so MySQL uses one index for both the **filter** and the **sort** — no extra filesort. `EXPLAIN` (the deferred join's subquery):
+
+```
+type=range  key=idx_orders_date  rows=4179  Extra: Using where; Using index
+```
+
+`Using index` is the key part: the subquery **never touches the table**, it only reads index entries.
+
+We measured the same query with the index disabled via `IGNORE INDEX` (January 2025 range, 4,179 matching rows, median of 5 runs):
+
+| | Time | `EXPLAIN` |
+|---|---|---|
+| `idx_orders_date` **used** | **1.81 ms** | `type=range`, `Using index` |
+| Index disabled | **287.40 ms** | `type=ALL`, `rows=91,493`, `Using filesort` |
+
+**159×.** Same `WHERE`, same result set — the only difference is whether the index is used.
+
+### What happens on an invalid date?
+
+Date values are validated for **format and calendar** before they reach the prepared statement (`valid_date()`, `system/function.php`): a regex enforces `YYYY-MM-DD`, and `checkdate()` rejects dates like `2025-02-30` that are well-formed but **do not exist on the calendar**. An invalid value produces **no error and no filter** — it is ignored.
+
+Why ignore instead of reject? This is a showcase; showing the unfiltered result is less hostile than an "invalid date" error. But we are not silent about it: the bounds the server **accepted** are echoed back in the response's `meta`, and the UI corrects its inputs to match — so **what the screen says is always what the query did.**
+
+The same logic handles reversed bounds: if `date_from > date_to`, the two are **swapped**. Otherwise the query would always return 0 rows and the UI would present a user error as "no data".
+
+Measured:
+
+| Input | Result |
+|---|---|
+| `2025-03-01` → `2025-01-01` (reversed) | Swapped, 8,125 rows, `meta` returned the corrected bounds |
+| `2025-02-30` (not a real date) | Ignored, 100,000 rows |
+| `abc'OR1=1` | Ignored, 100,000 rows |
+
+---
+
 ## Index decisions
 
 **Every index has a price.** We measured it: with all secondary indexes present, a 20,000-row bulk `INSERT` takes **2,262 ms**; with `idx_orders_amount` and `idx_orders_customer` dropped, **1,267 ms**. Nearly double the write cost. The table carries **11.5 MB of data** against **33.2 MB of indexes**.
@@ -305,6 +353,63 @@ ORDER BY order_number            →   0.84 ms  (Using index)     ✅
 **Why?** In InnoDB the primary key is already appended to every secondary index; `idx_orders_customer` is really `(customer_name, id)`, so `ORDER BY customer_name, id` is a direct prefix of it. But `idx_orders_status_date` is `(status, order_date, id)` — `ORDER BY status, id` is **not a prefix**, because `order_date` in between is skipped. In the other direction, `order_number` is already `UNIQUE` and therefore uniquely identifying; appending `, id` buys **nothing** while breaking the optimization.
 
 The correct rule: **build the shortest key list needed for stability, following the order of the index that serves that column.** The code does this per column in `sort_keys()`.
+
+---
+
+## UI decisions — mobile, theme and filter chips
+
+No matter how fast the server is, performance is worthless if the table is unreadable on a phone. This round the UI got the same treatment: **measure first, then fix.** Measurements were taken in real Chrome at 390×844, 360×740 and 1440×950 viewports.
+
+### 1. Horizontal scrolling is not "responsive design"
+
+The table's 8 columns wanted **~980 px** at a viewport width of 390 px. `.table-responsive` turned that into horizontal scrolling — but **touch devices show no scrollbar**: users did not even know the "Amount" and "Status" columns **existed**.
+
+Now, on narrow screens (`≤ 767.98 px`), every row becomes a **card** and every cell a "label: value" line. CSS `::before` prints the label; `table.js` writes the text onto each cell as `data-label` (`applyMobileLabels()`).
+
+**Why aren't the labels rendered server-side?** Repeating each label on every cell of 500 rows would inflate the response body for nothing (8 columns × 500 rows = 4,000 repetitions). The labels already exist once in `<thead>`; the client reads them from there — this repo takes payload size seriously.
+
+### 2. Bug found: cells overflowing because of `box-sizing`
+
+The first version of the card view was **broken**, and the reason was invisible until measured:
+
+```
+tr  width: 340 px
+td  width: 365 px   ← 25 px OUTSIDE the card
+td  computed box-sizing: content-box
+```
+
+DataTables' own CSS sets `box-sizing: content-box` for `table.dataTable tbody td`. So `width: 100%` (338 px) + 27.2 px of horizontal padding = **365 px**; the last digit of the order number and the cents of the amount were **clipped off screen**. In card view the padding must be counted **inside** the width — `box-sizing: border-box`.
+
+### 3. Bug found: badges unreadable in dark theme
+
+The "Total … ms" badge and the filter chips used a `--cy-brand-100` background with `--cy-brand-700` text. That pair is **correct in light theme** (#0a3d73 on #e7f1fc, ~9:1), but in dark theme the background flips to deep navy (#10263f) while **the text colour did not change**: contrast ≈ **1.2:1** — the text was effectively invisible.
+
+The fix is to make **the text a token too**, like the background: `--cy-on-brand-soft`. Components now reference a variable that turns with the theme instead of a fixed brand tone.
+
+### 4. Don't lose sorting on a phone
+
+In card view `<thead>` is hidden — and with it the **clickable column headers**. A sort selector plus a direction button were added, kept in **two-way** sync with DataTables: if a user clicks a header on desktop and then narrows the window, the controls show the real sort. A UI that doesn't lie is a separate requirement from a UI that works.
+
+### 5. Pagination: don't centre overflowing content
+
+100,000 rows = **4,000 pages**. The page numbers don't fit in 390 px, so pagination scrolls inside itself. The first attempt used `center` alignment, and because the overflowing content was centred, the **"First / Previous" buttons on the left were unreachable even by scrolling**. Fixed with `flex-start`.
+
+In the same bar, the info text (`Showing 1 – 25 of 100,000…`) was `nowrap` for desktop; at 390 px **both ends** of the sentence were clipped. It now wraps on narrow screens.
+
+### 6. Other measured fixes
+
+| What | Why |
+|---|---|
+| Toolbar `flex + overflow-x` → **grid** | Filter controls sat off the right edge of the screen with no visual hint |
+| Perf strip → **`<details>`** | It ate four lines on a phone and pushed the table off screen; even collapsed it still shows the total time |
+| `min-height: 44px`, `font-size: 1rem` on form fields | **iOS Safari auto-zooms** when focusing a field below 16 px |
+| Scroll back to the table top on page change | Paging buttons sit **below** the table; "Next" left users at the bottom of the new page |
+| Return to page 1 when a filter changes | Narrowing a filter on page 40 left users on an **empty page**, which reads as "no results" |
+| `thousands: '.'`, `decimal: ','` | DataTables printed `100,000` while the rest of the page said `100.000` — two number languages on one screen |
+| Theme preference inlined in `<head>` | `table.js` loads at the end of `<body>`, so the page painted light and then jumped to dark (FOUC). CSP stays intact: a **nonce** allows only that block |
+| Active filter **chips** | With filters spread across five controls, "why am I seeing 12 rows?" had no answer at a glance |
+| Chips built with `textContent` | The value comes straight from the search box; `innerHTML` would open a self-XSS path |
+| `meta.count_cached` **wired to the screen** | The field was already in the response but shown nowhere — yet it is the **only thing that explains** whether the count took 47 ms or 0.12 ms |
 
 ---
 
@@ -393,6 +498,8 @@ In addition to DataTables' standard server-side parameters:
 | `order[0][dir]` | string | `asc` \| `desc` (anything else → `desc`) |
 | `category_filter` | string | Category name |
 | `status_filter` | string | An `ORDER_STATUSES` key |
+| `date_from` | string | `YYYY-MM-DD` — **ignored** if invalid (`valid_date()`) |
+| `date_to` | string | `YYYY-MM-DD` — if earlier than `date_from`, the two are **swapped** |
 | `csrf_token` | string | **Required** (or the `X-CSRF-Token` header) |
 
 ### Response
@@ -412,10 +519,14 @@ In addition to DataTables' standard server-side parameters:
   "meta": {
     "count_cached": true,
     "search_mode": "scan",
-    "search_label": "full scan (LIKE %…%)"
+    "search_label": "full scan (LIKE %…%)",
+    "date_from": "2025-01-01",
+    "date_to": "2025-01-31"
   }
 }
 ```
+
+`meta.date_from` / `meta.date_to` are the bounds the server **accepted** (an invalid value comes back as `null`, reversed bounds come back swapped). The UI pulls its inputs to that value, so what the screen says is always what the query did.
 
 `timings` and `meta` are **not part of the DataTables contract** — they are teaching extras feeding the on-screen badges.
 
@@ -489,9 +600,9 @@ datatable-performance/
 │   ├── function.php           ← Count cache, search routing, deferred join, rate limit
 │   └── ajax.php               ← SINGLE endpoint: list (read-only)
 └── assets/
-    ├── css/style.css          ← Page-specific styles (cilginyazilim.css untouched)
-    ├── js/table.js            ← DataTables setup + badge updates + error branching
-    └── images/screenshot.png
+    ├── css/style.css          ← Page-specific styles + MOBILE card view (cilginyazilim.css untouched)
+    ├── js/table.js            ← DataTables setup, badges, filter chips, theme, mobile labels
+    └── images/                ← logo + screenshots (desktop, search, mobile)
 ```
 
 ### What does each function do?
@@ -502,6 +613,7 @@ datatable-performance/
 | `count_cached()` | `function.php` | **Real** `COUNT(*)`, file-cached (47 ms → 0.12 ms) |
 | `count_cache_forget()` | `function.php` | Clears the cache after writes (`seed.php` calls it) |
 | `classify_search()` | `function.php` | Picks the exact / prefix / scan path from the search text |
+| `valid_date()` | `function.php` | Validates date bounds for format **and calendar** (`checkdate()`) |
 | `build_page_sql()` | `function.php` | Builds the deferred-join query |
 | `sort_keys()` | `function.php` | Per-column stable sort keys that don't break the index |
 | `rate_limit()` | `function.php` | File-based sliding window counter with `flock()` |
@@ -544,6 +656,9 @@ php seed.php 100000
 | Page size cap | `MAX_PAGE_LENGTH` — `system/config.php` |
 | Search debounce delay | `SEARCH_DEBOUNCE_MS` — `assets/js/table.js` |
 | Status list/colors | `ORDER_STATUSES` — `system/config.php` |
+| Mobile card-view breakpoint | `MOBILE_BREAKPOINT` (`table.js`) **+** `@media (max-width: 767.98px)` (`style.css`) — **the two must match** |
+| Theme colors | `:root` tokens — `assets/css/cilginyazilim.css` (dark theme in the same file) |
+| Text on soft brand backgrounds | `--cy-on-brand-soft` — `assets/css/style.css` |
 | A new sortable column | `$sortableColumns` (`ajax.php`) **+** `sort_keys()` (`function.php`) **+ an index** |
 | Search paths | `classify_search()` — `system/function.php` |
 
@@ -565,7 +680,11 @@ php seed.php 100000
 
 ## Tested
 
-Every change in this round was verified **by measurement**: bidirectional sorting on every column, category + status filters, search with Turkish characters (`ÇILGIN`, `ŞAHİN`, `ÖZTÜRK`, `Ayşe`), combined filter + sort + pagination, search path routing, boundary values, XSS and SQL-injection regressions, that rate limiting does not break legitimate use, and race protection under concurrent requests.
+Every change in this round was verified **by measurement**.
+
+**Server side:** bidirectional sorting on every column, category + status + date-range filters and their combinations, search with Turkish characters (`ÇILGIN`, `ŞAHİN`, `ÖZTÜRK`, `Ayşe`), combined filter + sort + pagination, search path routing, boundary values, invalid and reversed date bounds, XSS and SQL-injection regressions, that rate limiting does not break legitimate use, and race protection under concurrent requests.
+
+**UI (real Chrome, automated):** at 390×844, 360×740 and 1440×950 viewports — the three-state theme cycle and its persistence across a reload, mobile card labels printed on all eight columns, the date-range filter (4,179 rows), filter chips being generated and removed individually, "Clear filters", the mobile sort control staying in sync with DataTables, and the search clear button. In all three viewports: **0 px horizontal overflow** and **no JavaScript errors** in the console.
 
 ---
 
@@ -573,4 +692,13 @@ Every change in this round was verified **by measurement**: bidirectional sortin
 
 MIT — download and use it however you like.
 
-**Çılgın Yazılım** · [cilginyazilim.com](https://cilginyazilim.com) · [github.com/CilginYazilim/datatable-performance](https://github.com/CilginYazilim/datatable-performance)
+### More example code
+
+The detailed write-up for this project and other open-source examples:
+
+- 📘 **[This project's article](https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu)** — DataTables performance optimization (Turkish)
+- 📚 **[Example code & library](https://cilginyazilim.com/kutuphane)** — all open-source examples
+
+---
+
+**Çılgın Yazılım** · [cilginyazilim.com](https://cilginyazilim.com) · [Library](https://cilginyazilim.com/kutuphane) · [github.com/CilginYazilim/datatable-performance](https://github.com/CilginYazilim/datatable-performance)

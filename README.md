@@ -17,7 +17,13 @@
 <img src="assets/images/screenshot.png" alt="100.000 satırlık tablo, üstünde sorgu süresi rozetiyle" width="900">
 </div>
 
-Yukarıdaki kare bu deponun tamamını özetler: tabloda **100.000 sipariş** var ve sayfa **2,88 ms**'de geldi — rozetteki "100.000" da `information_schema` tahmini değil, sayfalamayı fiilen süren **gerçek** `COUNT(*)`'tır (bkz. [Karar 1](#karar-1--tahmini-sayım-mı-önbelleğe-alınmış-gerçek-sayım-mı)).
+Yukarıdaki kare bu deponun tamamını özetler: tabloda **100.000 sipariş** var ve sayfa **3,09 ms**'de geldi — rozetteki "100.000" da `information_schema` tahmini değil, sayfalamayı fiilen süren **gerçek** `COUNT(*)`'tır (bkz. [Karar 1](#karar-1--tahmini-sayım-mı-önbelleğe-alınmış-gerçek-sayım-mı)).
+
+<div align="center">
+<img src="assets/images/screenshot-mobile.png" alt="Telefonda kart görünümü: her satır etiketli bir kart" width="300">
+</div>
+
+Telefonda aynı tablo **kart görünümüne** geçer. Sekiz sütunu 390 px'e yatay kaydırmayla sığdırmak, dokunmatikte kaydırma çubuğu görünmediği için sütunların **var olduğunu gizliyordu** — bkz. [Arayüz kararları](#arayüz-kararları--mobil-tema-ve-filtre-çipleri).
 
 Bu depo hem çalışan bir örnek hem de bir performans günlüğüdür: **buradaki her sayı ölçüldü**, hiçbiri tahmin değil.
 
@@ -30,8 +36,10 @@ Bu depo hem çalışan bir örnek hem de bir performans günlüğüdür: **burad
 - [Karar 1 — Tahmini sayım mı, önbelleğe alınmış gerçek sayım mı?](#karar-1--tahmini-sayım-mı-önbelleğe-alınmış-gerçek-sayım-mı)
 - [Karar 2 — `LIKE '%...%'` neden indeks kullanamaz, ne yaptık?](#karar-2--like-neden-indeks-kullanamaz-ne-yaptık)
 - [Karar 3 — Derin sayfalamanın maliyeti](#karar-3--derin-sayfalamanın-maliyeti)
+- [Karar 4 — Tarih aralığı: şemanın en ucuz filtresi](#karar-4--tarih-aralığı-şemanın-en-ucuz-filtresi)
 - [İndeks kararları](#i̇ndeks-kararları)
 - [Sıralama kararlılığı — ince ama pahalı tuzak](#sıralama-kararlılığı--ince-ama-pahalı-tuzak)
+- [Arayüz kararları — mobil, tema ve filtre çipleri](#arayüz-kararları--mobil-tema-ve-filtre-çipleri)
 - [Güvenlik katmanları](#güvenlik-katmanları)
 - [API sözleşmesi](#api-sözleşmesi)
 - [HTTP durum kodları](#http-durum-kodları)
@@ -75,6 +83,7 @@ Sunucu taraflı işlemede tarayıcı **yalnızca gördüğü 25 satırı** alır
 | Filtre: `status` | 53,50 ms | 113,99 ms | **2,55 ms** | 21× |
 | Filtre: `category` | 79,23 ms | 76,45 ms | **3,75 ms** | 21× |
 | Derin sayfa (OFFSET 99.000) | 240,25 ms | 111,21 ms | **61,99 ms** | 3,9× |
+| Tarih aralığı (2025 Ocak, 4.179 satır) | — | 17,46 ms | **4,07 ms** | bkz. [Karar 4](#karar-4--tarih-aralığı-şemanın-en-ucuz-filtresi) |
 
 **"Soğuk" ve "sıcak" ne demek?** Soğuk = sayım önbelleği boş, `COUNT(*)` gerçekten çalışıyor. Sıcak = sayım önbellekten geliyor (0,12 ms). Gerçek kullanımda ilk istek soğuk, ardından gelen **tüm sayfalama/sıralama istekleri sıcaktır** — sütun başlığına tıklayan ya da sayfa değiştiren kullanıcının gördüğü süre "sıcak" sütunudur. İkisini de veriyoruz çünkü yalnızca sıcak sayıları göstermek, önbelleğin maliyetini gizlemek olurdu.
 
@@ -234,6 +243,45 @@ Bu bilinçli bir ödünleşmedir: sayfa numaralarından vazgeçebiliyorsanız ke
 
 ---
 
+## Karar 4 — Tarih aralığı: şemanın en ucuz filtresi
+
+Bu turda arayüze bir **tarih aralığı filtresi** eklendi (`date_from` / `date_to`). Eklenme sebebi yalnızca kullanışlılık değil: bu şemadaki **en verimli erişim yolunu** gösteren örnek tam olarak budur.
+
+`idx_orders_date (order_date, id)` zaten vardı ve varsayılan sıralamayı (`order_date DESC`) karşılıyordu. Tarih aralığı **aynı indekste** bir **aralık taraması** açar; yani MySQL tek bir indeksi hem **filtre** hem **sıralama** için kullanır, ayrıca bir filesort yapmaz. `EXPLAIN` (ertelenmiş join'in alt sorgusu):
+
+```
+type=range  key=idx_orders_date  rows=4179  Extra: Using where; Using index
+```
+
+`Using index` kritik: alt sorgu tabloya **hiç dokunmuyor**, yalnızca indeks girdilerini okuyor.
+
+Aynı sorguyu `IGNORE INDEX` ile indeksi devre dışı bırakarak ölçtük (2025 Ocak aralığı, 4.179 satır eşleşiyor, 5 çalıştırmanın medyanı):
+
+| | Süre | `EXPLAIN` |
+|---|---|---|
+| `idx_orders_date` **kullanılıyor** | **1,81 ms** | `type=range`, `Using index` |
+| İndeks devre dışı | **287,40 ms** | `type=ALL`, `rows=91.493`, `Using filesort` |
+
+**159 kat.** Aynı `WHERE`, aynı sonuç kümesi — tek fark indeksin kullanılıp kullanılmaması.
+
+### Geçersiz tarihte ne oluyor?
+
+Tarih değerleri prepared statement'a gitmeden önce **biçim ve takvim** açısından doğrulanır (`valid_date()`, `system/function.php`): regex `YYYY-MM-DD` biçimini, `checkdate()` ise `2025-02-30` gibi biçimi doğru ama **takvimde olmayan** tarihleri eler. Geçersiz bir değer **hata vermez, filtre olarak da uygulanmaz** — yok sayılır.
+
+Neden reddetmek yerine yok saymak? Bu bir vitrin; kullanıcıya "geçersiz tarih" hatası göstermek yerine filtresiz sonucu göstermek daha az kırıcıdır. Ama sessiz kalmıyoruz: sunucunun **kabul ettiği** uçlar yanıtın `meta` alanında geri yansıtılır ve arayüz kutuları buna göre düzeltir — böylece **ekranda yazan filtre ile uygulanan filtre her zaman aynıdır.**
+
+Aynı mantık ters girilen uçlarda da çalışır: `date_from > date_to` ise ikisi **takas edilir**. Aksi hâlde sorgu her zaman 0 satır dönerdi ve arayüz kullanıcı hatasını "veri yok" diye gösterirdi.
+
+Ölçüldü:
+
+| Girdi | Sonuç |
+|---|---|
+| `2025-03-01` → `2025-01-01` (ters) | Takas edildi, 8.125 kayıt, `meta` düzeltilmiş uçları döndü |
+| `2025-02-30` (takvimde yok) | Yok sayıldı, 100.000 kayıt |
+| `abc'OR1=1` | Yok sayıldı, 100.000 kayıt |
+
+---
+
 ## İndeks kararları
 
 **Her indeksin bir bedeli vardır.** Ölçtük: tüm ikincil indeksler açıkken 20.000 satırlık toplu `INSERT` **2.262 ms**; `idx_orders_amount` ve `idx_orders_customer` düşürüldüğünde **1.267 ms**. Yazma maliyeti neredeyse iki katı. Tabloda **11,5 MB veri** karşılığında **33,2 MB indeks** var.
@@ -305,6 +353,63 @@ ORDER BY order_number            →   0,84 ms  (Using index)     ✅
 **Neden?** InnoDB'de her ikincil indeksin sonuna birincil anahtar zaten eklenir; `idx_orders_customer` aslında `(customer_name, id)`'dir, bu yüzden `ORDER BY customer_name, id` o indeksin doğrudan önekidir. Ama `idx_orders_status_date` `(status, order_date, id)`'dir — `ORDER BY status, id` bu indeksin **öneki değildir**, aradaki `order_date` atlanmıştır. Ters yönde `order_number` zaten `UNIQUE` olduğu için tekilleştiricidir; `, id` eklemek **hiçbir şey kazandırmaz** ama optimizasyonu bozar.
 
 Doğru kural: **kararlılık için gereken en kısa anahtar listesini, o sütuna hizmet eden indeksin kendi sırasını izleyerek kur.** Kod bunu `sort_keys()` içinde sütun bazlı yapar.
+
+---
+
+## Arayüz kararları — mobil, tema ve filtre çipleri
+
+Sunucu tarafı ne kadar hızlı olursa olsun, tablo telefonda okunamıyorsa performans bir şeye yaramaz. Bu turda arayüz de aynı yöntemle ele alındı: **önce ölç, sonra düzelt.** Ölçümler gerçek Chrome'da, 390×844 ve 360×740 görünüm alanlarında yapıldı.
+
+### 1. Yatay kaydırma "duyarlı tasarım" değildir
+
+Tablonun 8 sütunu 390 px genişliğinde **~980 px** yer istiyordu. `.table-responsive` bunu yatay kaydırmaya çeviriyordu — ama **dokunmatikte kaydırma çubuğu görünmez**: kullanıcı "Tutar" ve "Durum" sütunlarının **var olduğunu** bile bilmiyordu.
+
+Artık dar ekranda (`≤ 767.98 px`) her satır bir **kart**, her hücre bir "etiket: değer" satırı olur. Etiketi CSS'in `::before`'ı basar; metni `table.js` her hücreye `data-label` olarak yazar (`applyMobileLabels()`).
+
+**Neden etiketler sunucuda basılmıyor?** Aynı etiketi 500 satırın her hücresine yazmak yanıt gövdesini gereksiz büyütürdü (8 sütun × 500 satır = 4.000 tekrar). Etiketler `<thead>`'de zaten bir kez var; istemci onları oradan okur — bu depo veri boyutunu ciddiye alan bir depo.
+
+### 2. Bulunan hata: `box-sizing` yüzünden taşan hücreler
+
+Kart görünümü ilk hâliyle **bozuktu** ve sebebi ölçülene kadar görünmüyordu:
+
+```
+tr  genişlik: 340 px
+td  genişlik: 365 px   ← 25 px DIŞARI taşıyor
+td  computed box-sizing: content-box
+```
+
+DataTables'ın kendi CSS'i `table.dataTable tbody td` için `box-sizing`'i **`content-box`** yapıyor. Bu yüzden `width: 100%` (338 px) + 27,2 px yatay dolgu = **365 px** oldu; sipariş numarasının son hanesi ve tutarın kuruşu ekranda **kesiliyordu**. Kart görünümünde dolgu genişliğin **içinde** sayılmalı — `box-sizing: border-box`.
+
+### 3. Bulunan hata: koyu temada okunmayan rozetler
+
+"Toplam … ms" rozeti ve filtre çipleri `--cy-brand-100` zemin + `--cy-brand-700` metin kullanıyordu. Bu çift **açık temada doğru** (#e7f1fc üzerine #0a3d73, ~9:1) ama koyu temada zemin koyu laciverte (#10263f) dönüyor, **metin rengi değişmiyordu**: kontrast ≈ **1,2:1** — yazı fiilen okunmuyordu.
+
+Çözüm, zemin gibi **metnin de bir token olması**: `--cy-on-brand-soft`. Bileşenler artık sabit bir marka tonuna değil, temayla birlikte dönen bu değişkene bakar.
+
+### 4. Sıralama telefonda kaybolmasın
+
+Kart görünümünde `<thead>` gizlenir — ve onunla birlikte **tıklanabilir sütun başlıkları** da gider. Aynı işi yapan bir sıralama seçici + yön düğmesi eklendi ve DataTables ile **çift yönlü** eşitlenir: kullanıcı masaüstünde başlığa tıklayıp pencereyi daralttığında denetimler gerçek sıralamayı gösterir. Arayüzün yalan söylememesi, çalışmasından ayrı bir gerekliliktir.
+
+### 5. Sayfalama: taşan içeriği ortalamayın
+
+100.000 satır = **4.000 sayfa**. Sayfa numaraları 390 px'e sığmaz, bu yüzden sayfalama kendi içinde kaydırılabilir. İlk denemede hizalama `center` idi ve taşan içerik ortalandığı için soldaki **"İlk / Önceki" düğmelerine kaydırarak bile ulaşılamıyordu**. `flex-start` ile düzeltildi.
+
+Aynı bölümde bilgi metni (`100.000 kayıttan 1 – 25 arası…`) masaüstü için `nowrap` idi; 390 px'de cümlenin **iki ucu birden** kırpılıyordu. Dar ekranda sarmalanmasına izin verildi.
+
+### 6. Ölçülen diğer düzeltmeler
+
+| Ne | Neden |
+|---|---|
+| Araç çubuğu `flex + overflow-x` → **ızgara** | Filtre kutuları ekranın sağında, hiçbir işaret olmadan duruyordu |
+| Performans şeridi → **`<details>`** | Telefonda dört satır kaplayıp tabloyu ekran dışına itiyordu; kapalıyken bile toplam süreyi gösterir |
+| Form alanlarına `min-height: 44px`, `font-size: 1rem` | 16 px altındaki alana odaklanınca **iOS Safari sayfayı otomatik yakınlaştırıyor** |
+| Sayfa değişince tablonun başına dön | Sayfalama düğmeleri tablonun **altında**; "Sonraki"ye basan kullanıcı yeni sayfanın sonunda kalıyordu |
+| Filtre değişince 1. sayfaya dön | 40. sayfadayken filtre daraltılınca **boş sayfada** kalınıyor, kullanıcı bunu "sonuç yok" sanıyordu |
+| `thousands: '.'`, `decimal: ','` | DataTables `100,000` yazarken sayfanın geri kalanı `100.000` diyordu — aynı ekranda iki sayı dili |
+| Tema tercihi `<head>` içinde, satır içi | `table.js` `<body>` sonunda yüklendiği için sayfa önce açık boyanıp koyuya atlıyordu (FOUC). CSP delinmez: **nonce** yalnızca o bloğa izin verir |
+| Etkin filtre **çipleri** | Beş ayrı kutuya dağılmış filtrede "neden 12 kayıt görüyorum?" sorusunun cevabı tek bakışta görünmüyordu |
+| Çipler `textContent` ile kuruluyor | Değer doğrudan arama kutusundan geliyor; `innerHTML` self-XSS yolu açardı |
+| `meta.count_cached` **ekrana bağlandı** | Alan yanıtta zaten vardı ama hiçbir yerde gösterilmiyordu — oysa sayımın 47 ms mi 0,12 ms mi olduğunu **açıklayan tek bilgi** budur |
 
 ---
 
@@ -393,6 +498,8 @@ DataTables'ın standart sunucu taraflı parametrelerine ek olarak:
 | `order[0][dir]` | string | `asc` \| `desc` (başka her şey `desc`) |
 | `category_filter` | string | Kategori adı |
 | `status_filter` | string | `ORDER_STATUSES` anahtarı |
+| `date_from` | string | `YYYY-MM-DD` — geçersizse **yok sayılır** (`valid_date()`) |
+| `date_to` | string | `YYYY-MM-DD` — `date_from`'dan küçükse ikisi **takas edilir** |
 | `csrf_token` | string | **Zorunlu** (veya `X-CSRF-Token` başlığı) |
 
 ### Yanıt
@@ -412,12 +519,16 @@ DataTables'ın standart sunucu taraflı parametrelerine ek olarak:
   "meta": {
     "count_cached": true,
     "search_mode": "scan",
-    "search_label": "tam tarama (LIKE %…%)"
+    "search_label": "tam tarama (LIKE %…%)",
+    "date_from": "2025-01-01",
+    "date_to": "2025-01-31"
   }
 }
 ```
 
 `timings` ve `meta` **DataTables sözleşmesinin parçası değildir** — ekrandaki rozetleri besleyen öğretici eklerdir.
+
+`meta.date_from` / `meta.date_to`, sunucunun **kabul ettiği** uçlardır (geçersiz değer `null` döner, ters uçlar takas edilmiş gelir). Arayüz kutuları bu değere çeker; böylece ekranda yazan filtre ile uygulanan filtre her zaman aynı olur.
 
 ### Yarış durumu (race) nasıl önleniyor?
 
@@ -489,9 +600,9 @@ datatable-performance/
 │   ├── function.php           ← Sayım önbelleği, arama yönlendirme, ertelenmiş join, hız sınırı
 │   └── ajax.php               ← TEK uç nokta: list (salt okunur)
 └── assets/
-    ├── css/style.css          ← Sayfaya özel stiller (cilginyazilim.css'e dokunulmaz)
-    ├── js/table.js            ← DataTables kurulumu + rozet güncelleme + hata dallanması
-    └── images/screenshot.png
+    ├── css/style.css          ← Sayfaya özel stiller + MOBİL kart görünümü (cilginyazilim.css'e dokunulmaz)
+    ├── js/table.js            ← DataTables kurulumu, rozetler, filtre çipleri, tema, mobil etiketler
+    └── images/                ← logo + ekran görüntüleri (masaüstü, arama, mobil)
 ```
 
 ### Hangi fonksiyon ne işe yarar?
@@ -502,6 +613,7 @@ datatable-performance/
 | `count_cached()` | `function.php` | **Gerçek** `COUNT(*)`, dosya önbellekli (47 ms → 0,12 ms) |
 | `count_cache_forget()` | `function.php` | Yazma sonrası önbelleği boşaltır (`seed.php` çağırır) |
 | `classify_search()` | `function.php` | Arama metnine bakıp exact / prefix / scan yolunu seçer |
+| `valid_date()` | `function.php` | Tarih uçlarını biçim **ve takvim** açısından doğrular (`checkdate()`) |
 | `build_page_sql()` | `function.php` | Ertelenmiş join sorgusunu kurar |
 | `sort_keys()` | `function.php` | Sütun bazlı, indeksi bozmayan kararlı sıralama anahtarları |
 | `rate_limit()` | `function.php` | `flock()` kilitli, dosya tabanlı kayan pencere sayacı |
@@ -544,6 +656,9 @@ php seed.php 100000
 | Sayfa uzunluğu tavanı | `MAX_PAGE_LENGTH` — `system/config.php` |
 | Arama geciktirme süresi | `SEARCH_DEBOUNCE_MS` — `assets/js/table.js` |
 | Durum listesi/renkleri | `ORDER_STATUSES` — `system/config.php` |
+| Mobil kart görünümü eşiği | `MOBILE_BREAKPOINT` (`table.js`) **+** `@media (max-width: 767.98px)` (`style.css`) — **ikisi aynı olmak zorunda** |
+| Tema renkleri | `:root` token'ları — `assets/css/cilginyazilim.css` (koyu tema aynı dosyada) |
+| Marka zemini üzerindeki metin | `--cy-on-brand-soft` — `assets/css/style.css` |
 | Yeni sıralanabilir sütun | `$sortableColumns` (`ajax.php`) **+** `sort_keys()` (`function.php`) **+ indeks** |
 | Arama yolları | `classify_search()` — `system/function.php` |
 
@@ -565,7 +680,11 @@ php seed.php 100000
 
 ## Test edildi
 
-Bu turda yapılan tüm değişiklikler **ölçülerek** doğrulandı: her sütunda çift yönlü sıralama, kategori + durum filtreleri, Türkçe karakterli müşteri adında arama (`ÇILGIN`, `ŞAHİN`, `ÖZTÜRK`, `Ayşe`), filtre + sıralama + sayfalama bileşimleri, arama yolu yönlendirmesi, sınır değerleri, XSS ve SQL enjeksiyonu regresyonu, hız sınırının meşru kullanımı bozmadığı, ve eşzamanlı isteklerde yarış koruması.
+Bu turda yapılan tüm değişiklikler **ölçülerek** doğrulandı.
+
+**Sunucu tarafı:** her sütunda çift yönlü sıralama, kategori + durum + tarih aralığı filtreleri ve bileşimleri, Türkçe karakterli müşteri adında arama (`ÇILGIN`, `ŞAHİN`, `ÖZTÜRK`, `Ayşe`), arama yolu yönlendirmesi, sınır değerleri, geçersiz/ters tarih uçları, XSS ve SQL enjeksiyonu regresyonu, hız sınırının meşru kullanımı bozmadığı, eşzamanlı isteklerde yarış koruması.
+
+**Arayüz (gerçek Chrome, otomatikleştirilmiş):** 390×844, 360×740 ve 1440×950 görünüm alanlarında — üç durumlu tema döngüsü ve sayfa yenilemesinden sonra korunması, mobil kart etiketlerinin sekiz sütunun tamamına basılması, tarih aralığı filtresi (4.179 kayıt), filtre çiplerinin üretilmesi ve tek tek kaldırılması, "Filtreleri temizle", mobil sıralama denetiminin DataTables ile eşitlenmesi, arama temizleme düğmesi. Her üç görünüm alanında da **yatay taşma 0 px** ve konsolda **JavaScript hatası yok**.
 
 ---
 
@@ -573,4 +692,13 @@ Bu turda yapılan tüm değişiklikler **ölçülerek** doğrulandı: her sütun
 
 MIT — dilediğiniz gibi indirip kullanabilirsiniz.
 
-**Çılgın Yazılım** · [cilginyazilim.com](https://cilginyazilim.com) · [github.com/CilginYazilim/datatable-performance](https://github.com/CilginYazilim/datatable-performance)
+### Daha fazla örnek kod
+
+Bu projenin ayrıntılı yazısı ve diğer açık kaynak örnekler:
+
+- 📘 **[Bu projenin yazısı](https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu)** — DataTables performans optimizasyonu
+- 📚 **[Örnek kodlar & kütüphane](https://cilginyazilim.com/kutuphane)** — tüm açık kaynak örnekler
+
+---
+
+**Çılgın Yazılım** · [cilginyazilim.com](https://cilginyazilim.com) · [Kütüphane](https://cilginyazilim.com/kutuphane) · [github.com/CilginYazilim/datatable-performance](https://github.com/CilginYazilim/datatable-performance)

@@ -5,39 +5,164 @@
  *  Yükleme sırası:
  *    bootstrap.min.css → dataTables.bootstrap5.min.css →
  *    cilginyazilim.css → style.css
+ *
+ *  BU DOSYANIN İÇİNDEKİLER:
+ *     1) Sayfa genişliği
+ *     2) Kart başlığı (marka + tema düğmesi)
+ *     3) Performans paneli
+ *     4) Araç çubuğu (arama, filtreler, tarih aralığı, sıralama)
+ *     5) Etkin filtre çipleri
+ *     6) Alt çubuk (uzunluk + bilgi + sayfalama)
+ *     7) MOBİL — kart görünümü ve dokunma hedefleri
+ *     8) Erişilebilirlik (odak halkası)
  * ================================================================== */
 
 .cy-page { max-width: 1500px; margin: 0 auto; }
 
+/* ------------------------------------------------------------------
+ *  YUMUŞAK MARKA ZEMİNİ ÜZERİNDEKİ METİN RENGİ
+ * ------------------------------------------------------------------
+ *  ÖLÇÜLEN SORUN: "Toplam … ms" rozeti ve filtre çipleri
+ *  --cy-brand-100 zemin + --cy-brand-700 metin kullanıyordu. Bu çift
+ *  AÇIK temada doğru (#e7f1fc üzerine #0a3d73, ~9:1) ama KOYU temada
+ *  --cy-brand-100 koyu laciverte (#10263f) dönüyor ve metin rengi
+ *  DEĞİŞMİYORDU: #10263f üzerine #0a3d73 ≈ 1,2:1 — yazı fiilen
+ *  okunmuyordu (Chrome, koyu tema, ölçüldü).
+ *
+ *  ÇÖZÜM: zemin gibi METİN de bir token olsun. Bileşenler artık sabit
+ *  bir marka tonuna değil, temayla birlikte dönen bu değişkene bakar.
+ * ------------------------------------------------------------------ */
+:root { --cy-on-brand-soft: var(--cy-brand-700); }
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-cy-theme="light"]) { --cy-on-brand-soft: #8ec1f5; }
+}
+
+:root[data-cy-theme="dark"] { --cy-on-brand-soft: #8ec1f5; }
+
+/* Yatay taşma sigortası: DataTables bazı çizimlerde tabloya satır içi
+ * genişlik yazar; dar ekranda bu, TÜM SAYFAYI yana kaydırılabilir
+ * hâle getirebiliyordu (kart görünümünde bile). */
+html, body { overflow-x: hidden; }
+
 
 /* ==================================================================
- *  PERFORMANS ROZETİ
+ *  2) KART BAŞLIĞI
+ * ================================================================== */
+.cy-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.cy-header-row__side {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    flex-wrap: wrap;
+}
+
+/* --- Tema düğmesi -------------------------------------------------
+ * Gradyanlı başlığın üzerinde durduğu için cam efektli; .cy-badge
+ * ile aynı yüksekliği paylaşır ki yan yana hizalı dursunlar. */
+.cy-theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .45rem .8rem;
+    border-radius: var(--cy-radius-pill);
+    border: 1px solid rgba(255, 255, 255, .3);
+    background: rgba(255, 255, 255, .18);
+    color: #fff;
+    font-size: .8rem;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--cy-transition);
+}
+
+.cy-theme-toggle:hover,
+.cy-theme-toggle:focus-visible { background: rgba(255, 255, 255, .3); color: #fff; }
+
+.cy-theme-toggle__icon { font-size: 1rem; line-height: 1; }
+
+
+/* ==================================================================
+ *  3) PERFORMANS PANELİ
  * ------------------------------------------------------------------
- *  Her istekte YENİDEN yazılır (bkz. table.js updatePerfBar()).
+ *  Her istekte YENİDEN yazılır (bkz. table.js updateBadges()).
  *  Performansı "hızlıdır" diye anlatmak yerine SAYIYI GÖSTERMEK,
  *  optimizasyonun gerçek etkisini kanıtlar — özellikle filtre/arama
  *  değiştirilip sayının nasıl değiştiği izlendiğinde.
+ *
+ *  <details> kullanılmasının sebebi mobil: telefonda bu şerit dört
+ *  satır yer kaplayıp asıl içeriği ekranın dışına itiyordu. Kapalıyken
+ *  bile özet satırı TOPLAM SÜREYİ gösterir, yani bilgi kaybolmaz.
  * ================================================================== */
+.cy-perf {
+    margin-bottom: 1rem;
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius);
+    background: var(--cy-surface-soft);
+}
+
+.cy-perf__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .55rem .85rem;
+    cursor: pointer;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--cy-text-muted);
+    list-style: none;                 /* varsayılan üçgeni gizle */
+    user-select: none;
+}
+
+.cy-perf__summary::-webkit-details-marker { display: none; }
+
+/* Kendi açılış işaretimiz: yön değiştirerek durumu belli eder. */
+.cy-perf__summary::after {
+    content: "▾";
+    margin-left: auto;
+    order: 3;
+    transition: transform var(--cy-transition);
+}
+
+.cy-perf[open] .cy-perf__summary::after { transform: rotate(180deg); }
+
+.cy-perf__summary-value {
+    order: 2;
+    padding: .15rem .6rem;
+    border-radius: var(--cy-radius-pill);
+    background: var(--cy-brand-100);
+    color: var(--cy-on-brand-soft);
+    font-variant-numeric: tabular-nums;
+}
+
 .cy-perf-bar {
     display: flex;
     flex-wrap: wrap;
     gap: .5rem;
-    padding: .6rem .8rem;
-    background: var(--cy-surface-soft);
-    border: 1px solid var(--cy-border);
-    border-radius: var(--cy-radius);
+    padding: 0 .8rem .7rem;
     font-size: .8rem;
     color: var(--cy-text-muted);
 }
 
 .cy-perf-bar__item {
-    padding: .2rem .6rem;
+    display: inline-flex;
+    align-items: baseline;
+    gap: .4rem;
+    padding: .25rem .7rem;
     border-radius: 999px;
     background: var(--cy-surface);
     border: 1px solid var(--cy-border);
 }
 
-.cy-perf-bar__item strong {
+.cy-perf-bar__value strong {
     color: var(--cy-text);
     font-variant-numeric: tabular-nums;
 }
@@ -45,39 +170,200 @@
 .cy-perf-bar__item--total {
     background: var(--cy-brand-100);
     border-color: var(--cy-brand-400);
-    color: var(--cy-brand-700);
+    color: var(--cy-on-brand-soft);
     font-weight: 600;
 }
 
-.cy-perf-bar__item--total strong { color: var(--cy-brand-700); }
+.cy-perf-bar__item--total .cy-perf-bar__value strong { color: var(--cy-on-brand-soft); }
+
+/* Sayım önbellekten geldiğinde yeşil, gerçek COUNT çalıştığında nötr:
+ * 47 ms ile 0,12 ms arasındaki farkın SEBEBİ tek bakışta görünsün. */
+.cy-perf-bar__item.is-cached {
+    border-color: var(--cy-success);
+    color: var(--cy-success);
+}
+
+.cy-perf-bar__item.is-cached .cy-perf-bar__value strong { color: var(--cy-success); }
+
+/* Tam tarama yapan arama turuncuyla işaretlenir — pahalı yol
+ * GİZLENMEZ, aksine vurgulanır. */
+.cy-perf-bar__item.is-scan {
+    border-color: var(--cy-warning);
+    color: var(--cy-warning);
+}
+
+.cy-perf-bar__item.is-scan .cy-perf-bar__value strong { color: var(--cy-warning); }
 
 
 /* ==================================================================
- *  ARAÇ ÇUBUĞU
+ *  4) ARAÇ ÇUBUĞU
+ * ------------------------------------------------------------------
+ *  ESKİDEN: tek satır flex + overflow-x:auto. Telefonda bu, kullanıcıya
+ *  GÖRÜNMEYEN bir yatay kaydırma bırakıyordu — kategori ve durum
+ *  kutuları ekranın sağında, hiçbir işaret olmadan duruyordu.
+ *  ŞİMDİ: otomatik ızgara. Dar ekranda tek sütun, geniş ekranda
+ *  sığdığı kadar sütun; kırılma noktası saymaya gerek kalmaz.
  * ================================================================== */
 .cy-toolbar {
-    display: flex;
-    flex-wrap: nowrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     align-items: center;
-    gap: .75rem;
+    gap: .7rem;
     margin-bottom: 1rem;
-    overflow-x: auto;
-    padding-bottom: .15rem;
 }
 
-.cy-toolbar__search {
-    flex: 1 1 240px;
-    min-width: 180px;
-    max-width: 380px;
+/* Arama kutusu diğerlerinden geniş olsun; ızgarada iki sütun kaplar. */
+.cy-toolbar__field--search { grid-column: span 2; position: relative; }
+
+.cy-toolbar__search { width: 100%; padding-right: 2.6rem; }
+
+/* Tarayıcının kendi "×" düğmesi yalnızca WebKit'te var ve dokunmatikte
+ * çok küçük — kendi düğmemizi koyup onu gizliyoruz. */
+.cy-toolbar__search::-webkit-search-cancel-button { display: none; }
+
+.cy-toolbar__clear {
+    position: absolute;
+    top: 50%;
+    inset-inline-end: .35rem;
+    transform: translateY(-50%);
+    width: 2rem;
+    height: 2rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--cy-text-muted);
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
 }
 
-.cy-toolbar__select {
-    flex: 0 0 170px;
+.cy-toolbar__clear:hover { background: var(--cy-brand-100); color: var(--cy-text); }
+
+.cy-toolbar__select { width: 100%; }
+
+/* --- Tarih aralığı ---------------------------------------------- */
+.cy-toolbar__field--date {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
 }
+
+.cy-toolbar__date-label {
+    font-size: .75rem;
+    font-weight: 600;
+    color: var(--cy-text-muted);
+    white-space: nowrap;
+    margin: 0;
+}
+
+.cy-toolbar__date { flex: 1 1 auto; min-width: 0; }
+
+/* Koyu temada tarih kutusunun takvim ikonu siyah kalıp kayboluyordu.
+ * Koşullar cilginyazilim.css'teki tema kurallarıyla BİREBİR aynı:
+ * (a) kullanıcı koyuyu seçtiyse, (b) sistem koyu ve kullanıcı açığı
+ * ZORLAMADIYSA. Tek bir selektörde birleştirilseydi, sistem açık
+ * temadayken de ikon ters çevrilirdi. */
+:root[data-cy-theme="dark"] .cy-toolbar__date::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(.75);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-cy-theme="light"]) .cy-toolbar__date::-webkit-calendar-picker-indicator {
+        filter: invert(1) opacity(.75);
+    }
+}
+
+/* --- Mobil sıralama denetimi ------------------------------------
+ * Masaüstünde GİZLİ: orada sütun başlıkları zaten tıklanabilir.
+ * Dar ekranda <thead> gizlendiği için tek sıralama yolu budur. */
+.cy-toolbar__field--sort { display: none; gap: .5rem; }
+
+.cy-sort-dir {
+    flex: 0 0 auto;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--cy-border);
+    border-radius: var(--cy-radius-sm);
+    background: var(--cy-surface);
+    color: var(--cy-text);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cy-sort-dir:hover { background: var(--cy-brand-100); }
+
+.cy-toolbar__reset {
+    background: var(--cy-surface);
+    border: 1px solid var(--cy-border);
+    color: var(--cy-text);
+    font-size: .85rem;
+    white-space: nowrap;
+}
+
+.cy-toolbar__reset:not(:disabled):hover {
+    border-color: var(--cy-danger);
+    color: var(--cy-danger);
+}
+
+.cy-toolbar__reset:disabled { opacity: .45; cursor: default; }
 
 
 /* ==================================================================
- *  ALT ÇUBUK (uzunluk + bilgi + sayfalama)
+ *  5) ETKİN FİLTRE ÇİPLERİ
+ * ================================================================== */
+.cy-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .4rem;
+    margin-bottom: 1rem;
+}
+
+.cy-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    max-width: 100%;
+    padding: .25rem .3rem .25rem .7rem;
+    border-radius: var(--cy-radius-pill);
+    background: var(--cy-brand-100);
+    border: 1px solid var(--cy-brand-400);
+    color: var(--cy-on-brand-soft);
+    font-size: .78rem;
+}
+
+.cy-chip__label { font-weight: 600; opacity: .8; white-space: nowrap; }
+
+/* Uzun bir arama metni çipi ekran dışına taşırmasın. */
+.cy-chip__value {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 14rem;
+}
+
+.cy-chip__remove {
+    flex: 0 0 auto;
+    width: 1.4rem;
+    height: 1.4rem;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.cy-chip__remove:hover { background: var(--cy-brand-400); color: #fff; }
+
+
+/* ==================================================================
+ *  6) ALT ÇUBUK (uzunluk + bilgi + sayfalama)
  * ------------------------------------------------------------------
  *  excel-import-export / bulk-actions-table projelerindeki aynı
  *  desenin tekrarıdır — bkz. oradaki ".dataTables_length" satır
@@ -115,6 +401,246 @@
 .cy-bottom-bar__info .dataTables_info { padding: 0; white-space: nowrap; }
 .cy-bottom-bar__pagination .dataTables_paginate { margin: 0 !important; }
 
-@media (max-width: 575.98px) {
-    .cy-bottom-bar { justify-content: center; text-align: center; }
+
+/* ==================================================================
+ *  7) MOBİL — KART GÖRÜNÜMÜ VE DOKUNMA HEDEFLERİ
+ * ------------------------------------------------------------------
+ *  ÖLÇÜLEN SORUN: 8 sütunlu tablo 360 px genişliğinde bir telefonda
+ *  ~980 px yer istiyordu. .table-responsive bunu yatay kaydırmaya
+ *  çeviriyordu — ama dokunmatikte kaydırma çubuğu GÖRÜNMEZ:
+ *  kullanıcı "Tutar" ve "Durum" sütunlarının VAR OLDUĞUNU bile
+ *  bilmiyordu. Kaydırılabilir bir tablo, "erişilebilir" demek değildir.
+ *
+ *  ÇÖZÜM: her satır bir KART, her hücre bir "etiket: değer" satırı.
+ *  Etiketi ::before basar; metni table.js her hücreye data-label
+ *  olarak yazar (bkz. applyMobileLabels).
+ *
+ *  Eşik 767.98px, table.js'teki MOBILE_BREAKPOINT ile AYNI olmak
+ *  ZORUNDA — biri etiketi basar, diğeri gösterir.
+ * ================================================================== */
+@media (max-width: 767.98px) {
+
+    .cy-card__header,
+    .cy-card__body { padding: 1rem; }
+
+    .cy-page { padding-left: .5rem; padding-right: .5rem; }
+
+    /* --- Başlık --- */
+    .cy-header-row { gap: .75rem; }
+    .cy-header-row__side { width: 100%; justify-content: space-between; }
+
+    /* --- Araç çubuğu: tek sütun --- */
+    .cy-toolbar { grid-template-columns: 1fr; }
+    .cy-toolbar__field--search { grid-column: span 1; }
+    .cy-toolbar__field--sort { display: flex; }
+
+    /* Dokunma hedefi en az 44px (WCAG 2.5.5 / Apple HIG).
+     * Ayrıca yazı boyutu 16px'in ALTINA düşmemeli: iOS Safari daha
+     * küçük bir alana odaklandığında sayfayı OTOMATİK YAKINLAŞTIRIR
+     * ve kullanıcı geri uzaklaştırmak zorunda kalır. */
+    .cy-app .form-control,
+    .cy-app .form-select {
+        min-height: 44px;
+        font-size: 1rem;
+    }
+
+    .cy-toolbar__reset { min-height: 44px; }
+
+    /* İki tarih kutusu alt alta geldiğinde "Başlangıç" ve "Bitiş"
+     * farklı uzunlukta olduğu için kutular kaymış başlıyordu.
+     * Sabit etiket genişliği ikisini aynı dikey çizgiye oturtur. */
+    .cy-toolbar__date-label { min-width: 4.6rem; }
+
+    /* --- Tablo → kart --- */
+    .cy-table-wrap {
+        overflow-x: visible;   /* yatay kaydırma kalksın */
+        overflow-y: visible;
+    }
+
+    .cy-table,
+    .cy-table > tbody,
+    .cy-table > tbody > tr,
+    .cy-table > tbody > tr > td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Başlık satırı gizlenir ama EKRAN OKUYUCUDAN da kaldırılır:
+     * hücrelerin etiketi artık ::before ile geliyor, thead'i
+     * sadece görsel olarak gizlemek aynı bilgiyi İKİ KEZ okuturdu. */
+    .cy-table > thead { display: none; }
+
+    .cy-table > tbody > tr {
+        margin-bottom: .75rem;
+        padding: .3rem 0;
+        border: 1px solid var(--cy-border);
+        border-radius: var(--cy-radius);
+        background: var(--cy-surface);
+        box-shadow: var(--cy-shadow-sm);
+        overflow: hidden;
+    }
+
+    .cy-table > tbody > tr:hover > td { background: transparent; }
+
+    .cy-table > tbody > tr > td {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: .4rem .85rem;
+        border: 0;
+        text-align: right;
+
+        /* ÖLÇÜLDÜ, GERÇEK BİR HATAYDI: DataTables'ın kendi CSS'i
+         * "table.dataTable tbody td" için box-sizing'i content-box
+         * yapıyor. Bu yüzden width:100% + 27,2 px yatay dolgu = 365 px
+         * oldu ve hücre 340 px'lik kartın 25 px DIŞINA taştı; sipariş
+         * numarasının son hanesi ve tutarın kuruşu ekranda kesiliyordu
+         * (Chrome 390×844, ölçüldü). Kart görünümünde dolgu genişliğin
+         * İÇİNDE sayılmalı. */
+        box-sizing: border-box;
+        min-width: 0;
+
+        /* Uzun ürün adları kartı yana genişletmesin, alt satıra insin. */
+        overflow-wrap: anywhere;
+    }
+
+    /* Tutar ve tarih hücrelerindeki .cy-nowrap masaüstünde sütunun
+     * bölünmesini engelliyor; kart görünümünde bölünecek bir sütun
+     * yok, ama nowrap dar ekranda taşmaya yol açıyor. */
+    .cy-table > tbody > tr > td .cy-nowrap { white-space: normal; }
+
+    /* Sunucu bazı hücrelere .text-center / .text-end veriyor;
+     * kart görünümünde hepsi sağa yaslı olmalı ki değerler
+     * tek bir dikey çizgide hizalansın. */
+    .cy-table > tbody > tr > td.text-center,
+    .cy-table > tbody > tr > td.text-end { text-align: right; }
+
+    .cy-table > tbody > tr > td::before {
+        content: attr(data-label);
+        flex: 0 0 auto;
+        text-align: left;
+        font-size: .7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: var(--cy-text-muted);
+    }
+
+    /* Kayıt numarası kartın BAŞLIK şerididir, sıradan bir satır değil. */
+    .cy-table > tbody > tr > td.cy-id {
+        background: var(--cy-surface-soft);
+        border-bottom: 1px solid var(--cy-border);
+        margin-bottom: .25rem;
+        padding-top: .55rem;
+        padding-bottom: .55rem;
+        font-weight: 700;
+        color: var(--cy-text);
+    }
+
+    /* "Kayıt bulunamadı" satırı bir veri satırı değildir: ne kart
+     * kenarlığı ne de etiketi olmalı. */
+    .cy-table > tbody > tr > td.dataTables_empty {
+        display: block;
+        text-align: center;
+        padding: 1.5rem .85rem;
+        color: var(--cy-text-muted);
+    }
+
+    .cy-table > tbody > tr > td.dataTables_empty::before { content: none; }
+
+    /* --- Alt çubuk --- */
+    .cy-bottom-bar {
+        justify-content: center;
+        text-align: center;
+        /* Çentikli telefonlarda alt gezinme çubuğunun arkasında
+         * kalmasın (bkz. index.php, viewport-fit=cover). */
+        padding-bottom: env(safe-area-inset-bottom, 0);
+    }
+
+    .cy-bottom-bar__length,
+    .cy-bottom-bar__info {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* "100.000 kayıttan 1 – 25 arası gösteriliyor…" cümlesi
+     * masaüstünde tek satırda tutuluyor (nowrap). Dar ekranda bu,
+     * cümlenin İKİ UCUNU birden kırpıyordu — ölçüldü: 390 px'de
+     * baştaki "100.000 kayı" ve sondaki "…filtrelendi)" görünmüyordu.
+     * Burada sarmalanmasına izin veriyoruz. */
+    .cy-bottom-bar__info .dataTables_info { white-space: normal; }
+
+    /* 100.000 satır = 4.000 sayfa; sayfa numaraları 390 px'e sığmaz.
+     * KENDİ İÇİNDE kaydırılabilir olması, sayfanın TAMAMINI yana
+     * kaydırmaktan iyidir. Ama hizalama SOLDAN başlamak zorunda:
+     * "center" ile denendiğinde taşan içerik ortalanıyor ve soldaki
+     * "İlk / Önceki" düğmelerine kaydırarak bile ULAŞILAMIYORDU. */
+    .cy-bottom-bar__pagination {
+        width: 100%;
+        justify-content: flex-start;
+        max-width: 100%;
+        overflow-x: auto;
+        /* Kaydırma parmakla bırakıldığında düğmelere yapışsın. */
+        scroll-snap-type: x proximity;
+    }
+
+    .cy-bottom-bar__pagination .dataTables_paginate { margin: 0 !important; }
+    .cy-bottom-bar__pagination .pagination { flex-wrap: nowrap; margin: 0; }
+    .cy-bottom-bar__pagination .page-item { scroll-snap-align: center; }
+
+    /* 42px'lik dokunma hedefi (WCAG 2.5.5 tavsiyesi 44px, kenar
+     * boşluklarıyla birlikte karşılanıyor). */
+    .dataTables_wrapper .page-link {
+        min-width: 42px;
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* --- Alt bilgi --- */
+    .cy-footer-links { flex-direction: column; gap: .5rem; }
+}
+
+/* Çok dar ekranlar (≤360px): etiket ve değer alt alta. */
+@media (max-width: 360px) {
+    .cy-table > tbody > tr > td {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .1rem;
+        text-align: left;
+    }
+
+    .cy-table > tbody > tr > td.text-center,
+    .cy-table > tbody > tr > td.text-end { text-align: left; }
+}
+
+
+/* ==================================================================
+ *  ALT BİLGİ BAĞLANTILARI
+ * ================================================================== */
+.cy-footer-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem 1.25rem;
+}
+
+
+/* ==================================================================
+ *  8) ERİŞİLEBİLİRLİK — GÖRÜNÜR ODAK HALKASI
+ * ------------------------------------------------------------------
+ *  Klavyeyle gezen kullanıcı nerede olduğunu görmeli. :focus-visible
+ *  kullanılıyor (:focus değil): fareyle tıklayanda halka çıkmaz,
+ *  yalnızca klavye/AT ile gezildiğinde çıkar.
+ * ================================================================== */
+.cy-theme-toggle:focus-visible,
+.cy-toolbar__clear:focus-visible,
+.cy-chip__remove:focus-visible,
+.cy-sort-dir:focus-visible,
+.cy-perf__summary:focus-visible {
+    outline: 2px solid var(--cy-accent);
+    outline-offset: 2px;
 }

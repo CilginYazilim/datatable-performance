@@ -423,6 +423,31 @@ function classify_search(string $search): array
 }
 
 
+/**
+ * Kullanıcıdan gelen tarihi doğrular ve YYYY-MM-DD biçimine indirger.
+ * ---------------------------------------------------------------------
+ *  NEDEN AYRI BİR DOĞRULAMA? Tarih aralığı filtresi doğrudan
+ *  idx_orders_date üzerinde bir ARALIK taraması açar — yani bu
+ *  şemadaki en verimli erişim yollarından biridir (bkz. README,
+ *  "Tarih aralığı" bölümü). Ama değer prepared statement'a
+ *  gitmeden önce BİÇİMİ doğrulanmazsa, MySQL geçersiz bir metni
+ *  sessizce '0000-00-00' gibi bir şeye çevirip filtreyi anlamsız
+ *  kılabilir. Burada geçersiz her değer filtreyi HİÇ uygulamamayı
+ *  seçer — yanlış sonuç göstermektense filtreyi yok saymak.
+ *
+ *  checkdate() ayrıca 2025-02-30 gibi BİÇİMİ doğru ama TAKVİMDE
+ *  olmayan tarihleri de eler; tek başına regex bunu yakalamaz.
+ */
+function valid_date(string $value): ?string
+{
+    if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) !== 1) {
+        return null;
+    }
+
+    return checkdate((int) $m[2], (int) $m[3], (int) $m[1]) ? $value : null;
+}
+
+
 /* =====================================================================
  *  BÖLÜM 6 – SAYFALAMA SORGUSU (ertelenmiş join)
  * ================================================================== */
