@@ -618,6 +618,7 @@ CREATE TABLE `orders` (
 ```
 datatable-performance/
 ├── index.php                  ← UI: performance badge + table
+├── .env.example               ← Database credentials (optional) — in .gitignore
 ├── cy_datatable.sql           ← Schema AND indexes (no data) + index rationale
 ├── seed.php                   ← CLI data generator (php seed.php [row_count])
 ├── .htaccess                  ← No directory listing, .sql/.md denied, security headers
@@ -658,6 +659,9 @@ datatable-performance/
 cd C:/xampp/htdocs
 git clone https://github.com/CilginYazilim/datatable-performance.git
 cd datatable-performance
+
+# 0) Your own database credentials, if any (optional)
+cp .env.example .env      # Windows: copy .env.example .env
 
 # 1) Create the schema and indexes
 mysql -u root -p < cy_datatable.sql

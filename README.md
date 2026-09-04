@@ -618,6 +618,7 @@ CREATE TABLE `orders` (
 ```
 datatable-performance/
 ├── index.php                  ← Arayüz: performans rozeti + tablo
+├── .env.example               ← Veritabanı bilgileri (isteğe bağlı) — .gitignore içinde
 ├── cy_datatable.sql           ← Şema VE indeksler (veri YOK) + indeks gerekçeleri
 ├── seed.php                   ← CLI veri üretici (php seed.php [satır_sayısı])
 ├── .htaccess                  ← Dizin listeleme kapalı, .sql/.md engelli, güvenlik başlıkları
@@ -658,6 +659,9 @@ datatable-performance/
 cd C:/xampp/htdocs
 git clone https://github.com/CilginYazilim/datatable-performance.git
 cd datatable-performance
+
+# 0) Kendi veritabanı bilgileriniz varsa (isteğe bağlı)
+cp .env.example .env      # Windows: copy .env.example .env
 
 # 1) Şemayı ve indeksleri oluştur
 mysql -u root -p < cy_datatable.sql
