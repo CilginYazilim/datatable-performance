@@ -9,7 +9,34 @@ Indexing · Deferred join · Cached exact counts · **Measurable** performance
 
 [cilginyazilim.com](https://cilginyazilim.com) · MIT License · 🇹🇷 [Türkçe](README.md)
 
+
+[**▶ Live Demo**](https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/) · [Source Library](https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu) · [cilginyazilim.com](https://cilginyazilim.com)
+
 </div>
+
+---
+
+<div align="center">
+
+## Live Demo
+
+**No setup, no sign-up, no download — try it in your browser in 3 seconds.**
+
+<a href="https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/"><img src="https://img.shields.io/badge/OPEN_LIVE_DEMO-0b5cb5?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=061321" alt="Open Live Demo" height="42"></a>
+<a href="https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu"><img src="https://img.shields.io/badge/BROWSE_SOURCE-0ea5e9?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=061321" alt="Browse Source" height="42"></a>
+<a href="https://github.com/CilginYazilim/datatable-performance/archive/refs/heads/main.zip"><img src="https://img.shields.io/badge/DOWNLOAD_ZIP-16a34a?style=for-the-badge&logo=github&logoColor=white&labelColor=061321" alt="Download ZIP" height="42"></a>
+
+<br><br>
+
+<a href="https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/" title="Click to open the live demo">
+  <img src="assets/images/screenshot-search.png" alt="100,000-row DataTables live demo preview" width="860">
+</a>
+
+<sub>▲ Click the image to open the demo</sub>
+
+</div>
+
+> **100,000 rows. Page, sort and search — the badge on top prints the real server time of every request.**
 
 ---
 
@@ -644,6 +671,45 @@ php seed.php 100000
 > **Before going live**, set `APP_DEBUG` to `false` in `system/config.php`.
 
 **Try a larger dataset:** run `php seed.php 500000` and repeat the same scenarios; watch how the badge numbers change. The deep-pagination and `scan` search curves are especially instructive.
+
+### Environment variables
+
+Put them in a **`.env`** file at the repository root and never touch
+`system/config.php`:
+
+```bash
+cp .env.example .env        # Windows: copy .env.example .env
+```
+
+`.env` is in `.gitignore`: it never reaches the repository and a deploy
+does **not** delete it. `system/config.php`, by contrast, lives in the
+repository and is replaced by the repository's copy on every deploy — a
+password written there both ships to GitHub and disappears on the first
+deploy.
+
+The app runs without the file too; the defaults below match a local XAMPP
+install.
+
+**Lookup order:** `.env` → the real environment variable (Apache `SetEnv`,
+systemd…) → the default shown here.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `DB_HOST` | `127.0.0.1` | Database server |
+| `DB_NAME` | `cy_datatable` | Database name |
+| `DB_USER` | `root` | User |
+| `DB_PASS` | *(empty)* | Password — **never hard-code it** |
+| `APP_TIMEZONE` | `Europe/Istanbul` | PHP timezone |
+| `APP_DEBUG` | *from environment* | Whether errors are printed to the page |
+
+**Why `APP_TIMEZONE`?** The `date.timezone` in XAMPP's `php.ini` can
+differ from the system timezone MySQL uses. On the test machine PHP was
+`Europe/Berlin` while MySQL was `Europe/Istanbul`, so two lines describing
+the same instant were an hour apart. The time **arithmetic** is done in
+SQL and was always correct — what drifted was the clock PHP printed. The
+timezone is now pinned explicitly; if your server is in another region,
+set this variable instead of touching the code.
+
 
 ---
 

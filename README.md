@@ -9,7 +9,34 @@
 
 [cilginyazilim.com](https://cilginyazilim.com) · MIT Lisansı · 🇬🇧 [English](README.en.md)
 
+
+[**▶ Canlı Demo**](https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/) · [Kaynak Kütüphanesi](https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu) · [cilginyazilim.com](https://cilginyazilim.com)
+
 </div>
+
+---
+
+<div align="center">
+
+## Canlı Demo
+
+**Kurulum yok, kayıt yok, indirme yok — tarayıcınızdan 3 saniyede deneyin.**
+
+<a href="https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/"><img src="https://img.shields.io/badge/CANLI_DEMOYU_A%C3%87-0b5cb5?style=for-the-badge&logo=googlechrome&logoColor=white&labelColor=061321" alt="Canlı Demoyu Aç" height="42"></a>
+<a href="https://cilginyazilim.com/kutuphane/datatables-performans-optimizasyonu"><img src="https://img.shields.io/badge/KAYNAK_KODU_%C4%B0NCELE-0ea5e9?style=for-the-badge&logo=readthedocs&logoColor=white&labelColor=061321" alt="Kaynak Kodu İncele" height="42"></a>
+<a href="https://github.com/CilginYazilim/datatable-performance/archive/refs/heads/main.zip"><img src="https://img.shields.io/badge/ZIP_%C4%B0ND%C4%B0R-16a34a?style=for-the-badge&logo=github&logoColor=white&labelColor=061321" alt="ZIP İndir" height="42"></a>
+
+<br><br>
+
+<a href="https://cilginyazilim.com/kutuphane/uygulama/datatable-performance/" title="Canlı demoyu açmak için tıklayın">
+  <img src="assets/images/screenshot-search.png" alt="100.000 satırlık DataTables canlı demo önizlemesi" width="860">
+</a>
+
+<sub>▲ Görsele tıklayarak demoyu açabilirsiniz</sub>
+
+</div>
+
+> **100.000 satır. Sayfa gezinin, sıralayın, arayın — üstteki rozet her isteğin gerçek süresini yazar.**
 
 ---
 
@@ -644,6 +671,44 @@ php seed.php 100000
 > **Canlıya alırken** `system/config.php` içindeki `APP_DEBUG`'ı `false` yapın.
 
 **Daha büyük bir veri setiyle deneyin:** `php seed.php 500000` çalıştırıp aynı senaryoları tekrarlayın; rozetlerdeki sayıların nasıl değiştiğini izleyin. Özellikle derin sayfalama ve `scan` araması eğrisi öğreticidir.
+
+### Ortam değişkenleri
+
+Depo kökündeki **`.env`** dosyasına yazın; `system/config.php` dosyasına
+hiç dokunmayın:
+
+```bash
+cp .env.example .env        # Windows: copy .env.example .env
+```
+
+`.env` `.gitignore` içindedir: depoya gönderilmez ve dağıtım (deploy) onu
+**silmez**. `system/config.php` ise depoda durur ve her dağıtımda depodaki
+sürümle değiştirilir — parolayı oraya yazarsanız hem GitHub'a gider hem de
+ilk deploy'da kaybolur.
+
+Dosyayı hiç oluşturmasanız da uygulama çalışır; aşağıdaki varsayılanlar
+yerel bir XAMPP kurulumuna göredir.
+
+**Değer arama sırası:** `.env` → sunucunun gerçek ortam değişkeni
+(Apache `SetEnv`, systemd…) → buradaki varsayılan.
+
+| Değişken | Varsayılan | Ne işe yarar |
+|---|---|---|
+| `DB_HOST` | `127.0.0.1` | Veritabanı sunucusu |
+| `DB_NAME` | `cy_datatable` | Veritabanı adı |
+| `DB_USER` | `root` | Kullanıcı |
+| `DB_PASS` | *(boş)* | Şifre — **koda yazmayın** |
+| `APP_TIMEZONE` | `Europe/Istanbul` | PHP'nin saat dilimi |
+| `APP_DEBUG` | *ortamdan* | Hataların ekrana basılıp basılmayacağı |
+
+**`APP_TIMEZONE` neden var?** XAMPP'ın `php.ini` dosyasındaki
+`date.timezone`, MySQL'in kullandığı sistem diliminden farklı olabilir.
+Test makinesinde PHP `Europe/Berlin`, MySQL `Europe/Istanbul`
+kullanıyordu; aynı anı anlatan iki satır bir saat farklı görünüyordu.
+Zaman **hesapları** SQL tarafında yapıldığı için doğruydu, ama ekrana
+basılan saat kayıyordu. Artık dilim açıkça sabitleniyor — sunucunuz başka
+bir bölgedeyse bu değişkeni tanımlamanız yeterli, koda dokunmayın.
+
 
 ---
 
